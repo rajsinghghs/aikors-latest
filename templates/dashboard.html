@@ -87,8 +87,25 @@
 
 {% block scripts %}
 <script>
+  // 🚀 GOOGLE AUTH FIX: Page load hote hi URL se token nikal kar save karo
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  
+  if (urlToken) {
+    // 1. Token ko localStorage mein save karo taaki Auth.isLoggedIn() true return kare
+    localStorage.setItem('token', urlToken);
+    
+    // 2. URL se token hata do taaki link clean (/dashboard) aur secure lage
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  // --- AAPKA MAIN DASHBOARD CODE ---
   document.addEventListener('DOMContentLoaded', () => {
-    if (!Auth.isLoggedIn()) { document.getElementById('auth-required').style.display = 'block'; return; }
+    if (!Auth.isLoggedIn()) { 
+      document.getElementById('auth-required').style.display = 'block'; 
+      return; 
+    }
+    
     document.getElementById('dashboard').style.display = 'grid';
     loadUserInfo();
     loadPurchases();
@@ -99,10 +116,14 @@
     document.getElementById('section-' + name).classList.add('active');
     document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
     document.getElementById('nav-' + name).classList.add('active');
-    if (name === 'orders') loadOrders(); else loadPurchases();
+    
+    if (name === 'orders') loadOrders(); 
+    else loadPurchases();
   }
 
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function esc(s) { 
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); 
+  }
 
   function loadUserInfo() {
     const user = Auth.getUser();
@@ -110,7 +131,7 @@
     
     // FAANG Feature: Google Avatar Display
     if(user.avatar_url) {
-      document.getElementById('user-initial').innerHTML = `<img src="${esc(user.avatar_url)}" alt="Profile">`;
+      document.getElementById('user-initial').innerHTML = `<img src="${esc(user.avatar_url)}" alt="Profile" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
     } else {
       document.getElementById('user-initial').textContent = user.name.charAt(0).toUpperCase();
     }
@@ -124,11 +145,22 @@
       const orders = await API.get('/orders');
       const paidOrders = orders.filter(o => o.status === 'paid');
       const purchased = [];
+      
       paidOrders.forEach(order => {
-        order.items.forEach(item => { if (item.product) purchased.push({ product: item.product, order_id: order.id, purchased_at: order.created_at, price_paid: item.price_at_purchase }); });
+        order.items.forEach(item => { 
+          if (item.product) purchased.push({ 
+            product: item.product, 
+            order_id: order.id, 
+            purchased_at: order.created_at, 
+            price_paid: item.price_at_purchase 
+          }); 
+        });
       });
 
-      if (!purchased.length) { document.getElementById('no-purchases').style.display = 'block'; return; }
+      if (!purchased.length) { 
+        document.getElementById('no-purchases').style.display = 'block'; 
+        return; 
+      }
 
       document.getElementById('purchases-list').innerHTML = purchased.map(p => {
         const thumb = p.product.thumbnail_url ? `<img src="${p.product.thumbnail_url}" alt="${esc(p.product.title)}">` : `IMG`;
@@ -146,13 +178,18 @@
       
       const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       gsap.to(".purchase-card", { opacity: 1, y: 0, stagger: rm ? 0 : 0.08, duration: rm ? 0 : 0.4 });
-    } catch (err) {}
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function loadOrders() {
     try {
       const orders = await API.get('/orders');
-      if (!orders.length) { document.getElementById('no-orders').style.display = 'block'; return; }
+      if (!orders.length) { 
+        document.getElementById('no-orders').style.display = 'block'; 
+        return; 
+      }
 
       document.getElementById('orders-list').innerHTML = orders.map(o => {
         const items = o.items.map(item => `
@@ -169,7 +206,7 @@
               <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:2px;">${formatDate(o.created_at)}</div>
             </div>
             <div style="display:flex; align-items:center; gap:16px;">
-              <span class="badge badge-success">${esc(o.status.toUpperCase())}</span>
+              <span class="badge ${o.status === 'paid' ? 'badge-success' : 'badge-warning'}">${esc(o.status.toUpperCase())}</span>
               <span style="font-weight:800; font-size:1.1rem;">${formatPrice(o.total_amount)}</span>
             </div>
           </div>
@@ -179,17 +216,28 @@
       
       const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       gsap.to(".order-card", { opacity: 1, y: 0, stagger: rm ? 0 : 0.08, duration: rm ? 0 : 0.4 });
-    } catch (err) {}
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function downloadProduct(productId, fileName) {
     const token = Auth.getToken();
     Toast.info('Preparing secure download...');
-    fetch('/api/orders/download/' + productId, { headers: { 'Authorization': 'Bearer ' + token } })
-      .then(res => { if (!res.ok) throw new Error('Download failed.'); return res.blob(); })
+    fetch('/api/orders/download/' + productId, { 
+      headers: { 'Authorization': 'Bearer ' + token } 
+    })
+      .then(res => { 
+        if (!res.ok) throw new Error('Download failed. Make sure your payment is successful.'); 
+        return res.blob(); 
+      })
       .then(blob => {
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileName;
-        document.body.appendChild(a); a.click(); a.remove();
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(blob); 
+        a.download = fileName;
+        document.body.appendChild(a); 
+        a.click(); 
+        a.remove();
         Toast.success('Download started!');
       }).catch(err => Toast.error(err.message));
   }
