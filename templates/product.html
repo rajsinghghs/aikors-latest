@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% block title %}Product Details — AIkors{% endblock %}
+
+{% block extra_head %}
+<style>
+  body { background-color: var(--bg-base); }
+  
+  .product-page-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: calc(var(--nav-h) + 40px) 24px 80px;
+  }
+
+  .product-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 48px;
+    align-items: start;
+  }
+  
+  /* ─── Left Side: Media & Content ─── */
+  .product-left { opacity: 0; transform: translateY(20px); }
+  
+  .product-hero-container {
+    position: relative;
+    width: 100%;
+    border-radius: var(--radius-xl);
+    aspect-ratio: 16/10;
+    background: var(--bg-surface-hover);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-sm);
+  }
+  .product-hero-img { width: 100%; height: 100%; object-fit: cover; }
+  .product-hero-placeholder {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+  }
+  
+  .product-badge-ui {
+    display: inline-flex; align-items: center;
+    padding: 6px 14px; border-radius: 100px;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; margin-bottom: 16px;
+  }
+  
+  .product-title {
+    font-size: clamp(2rem, 4vw, 3rem); font-weight: 800;
+    line-height: 1.1; letter-spacing: -0.03em; color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+  
+  .product-meta-row {
+    display: flex; align-items: center; gap: 16px;
+    color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 32px;
+  }
+  
+  .section-divider { height: 1px; background: var(--border); margin: 32px 0; }
+  
+  .product-desc {
+    color: var(--text-secondary); font-size: 1.05rem; line-height: 1.7;
+  }
+  
+  .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+  .tag-pill {
+    padding: 6px 16px; border-radius: 100px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    font-size: 0.85rem; color: var(--text-muted); font-weight: 500;
+  }
+
+  /* ─── Right Side: Sticky Buy Card ─── */
+  .product-right { position: sticky; top: calc(var(--nav-h) + 32px); opacity: 0; transform: translateY(20px); }
+  
+  .buy-card {
+    background: var(--bg-surface); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl); padding: 32px;
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .price-display { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
+  .buy-card-price { font-family: var(--font-display); font-size: 3rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+  .buy-card-original { color: var(--text-muted); text-decoration: line-through; font-size: 1.25rem; font-weight: 500; }
+  
+  .feature-list { list-style: none; margin-bottom: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .feature-list li { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; color: var(--text-secondary); font-weight: 500; }
+  .feature-list li svg { color: var(--success); flex-shrink: 0; }
+  
+  .success-banner {
+    background: var(--success-bg); border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: var(--radius-lg); padding: 24px; text-align: center;
+    margin-bottom: 24px;
+  }
+  
+  /* ─── Centered Download Loader (Full Screen Overlay) ─── */
+  .download-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0, 0, 0, 0.6);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    color: #fff; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .download-overlay.active { display: flex; opacity: 1; }
+  .download-spinner {
+    animation: spin 1s linear infinite; width: 48px; height: 48px; margin-bottom: 16px; color: var(--accent);
+  }
+
+  /* ─── Skeleton ─── */
+  .skeleton-box { background: var(--bg-surface-hover); border-radius: var(--radius-md); animation: faang-shimmer 2s infinite linear; background-image: linear-gradient(90deg, var(--bg-surface-hover) 0px, var(--border) 50%, var(--bg-surface-hover) 100%); background-size: 200% 100%; }
+
+  @media (max-width: 900px) {
+    .product-layout { grid-template-columns: 1fr; gap: 40px; }
+    .product-right { position: static; }
+    .buy-card { padding: 24px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Back to store link added cleanly to the top -->
+<div style="max-width: 1200px; margin: 0 auto; padding: calc(var(--nav-h) + 20px) 24px 0;">
+  <a href="/" style="display:inline-flex; align-items:center; gap:6px; color:var(--text-secondary); font-weight:600; font-size:0.95rem;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"></path><polyline points="12 19 5 12 12 5"></polyline></svg>
+    Back to Store
+  </a>
+</div>
+
+<!-- Central Download Loader -->
+<div class="download-overlay" id="download-loader">
+  <svg class="download-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+  <h2 style="font-size:1.5rem; font-weight:700;">Preparing your file...</h2>
+  <p style="color:rgba(255,255,255,0.7); margin-top:8px;">Fetching secure download link</p>
+</div>
+
+<div class="product-page-wrapper" style="padding-top: 24px;">
+
+  <!-- Loading State -->
+  <div id="loading-state" class="product-layout">
+    <div class="product-left" style="opacity:1; transform:none;">
+      <div class="skeleton-box" style="width:100%; aspect-ratio:16/10; border-radius:var(--radius-xl); margin-bottom:32px;"></div>
+      <div class="skeleton-box" style="height:24px; width:20%; margin-bottom:16px;"></div>
+      <div class="skeleton-box" style="height:48px; width:80%; margin-bottom:24px;"></div>
+      <div class="skeleton-box" style="height:16px; width:100%; margin-bottom:8px;"></div>
+      <div class="skeleton-box" style="height:16px; width:90%; margin-bottom:8px;"></div>
+      <div class="skeleton-box" style="height:16px; width:95%;"></div>
+    </div>
+    <div class="product-right" style="opacity:1; transform:none;">
+      <div class="skeleton-box" style="height:400px; border-radius:var(--radius-xl);"></div>
+    </div>
+  </div>
+
+  <!-- Main Product Content -->
+  <div id="product-content" style="display:none;">
+    <div class="product-layout">
+      
+      <!-- Left Content -->
+      <div class="product-left" id="gsap-left">
+        <div class="product-hero-container" id="product-thumbnail"></div>
+        <div class="product-badge-ui" id="product-category" style="display:none;"></div>
+        <h1 class="product-title" id="product-title"></h1>
+        
+        <div class="product-meta-row">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span id="product-sales"></span>
+          </span>
+        </div>
+        
+        <div class="section-divider"></div>
+        <div class="product-desc" id="product-description"></div>
+        <div class="tags-container" id="product-tags"></div>
+      </div>
+
+      <!-- Right Content (Buy Card) -->
+      <div class="product-right" id="gsap-right">
+        <div class="buy-card">
+          
+          <!-- Already Purchased State -->
+          <div id="purchased-state" style="display:none;">
+            <div class="success-banner">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--success); margin-bottom:12px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              <h3 style="font-family:var(--font-display); font-size:1.5rem; color:var(--text-primary); margin-bottom:4px;">You own this</h3>
+              <p style="font-size:0.9rem; color:var(--text-secondary);">Ready for download</p>
+            </div>
+            <button onclick="triggerDownload()" class="btn-primary" style="width:100%; height:52px; font-size:1.05rem;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Download Now
+            </button>
+          </div>
+
+          <!-- Buy State -->
+          <div id="buy-state">
+            <div class="price-display">
+              <div class="buy-card-price" id="buy-price"></div>
+              <div class="buy-card-original" id="buy-original" style="display:none;"></div>
+            </div>
+            
+            <ul class="feature-list">
+              <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg> Instant digital download</li>
+              <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Secure Razorpay checkout</li>
+              <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg> Lifetime dashboard access</li>
+            </ul>
+            
+            <button id="buy-btn" onclick="initiatePurchase()" class="btn-primary" style="width:100%; height:52px; font-size:1.05rem; margin-top:8px;">
+              Proceed to Checkout
+            </button>
+            <p style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:16px; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              Encrypted and secure
+            </p>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Not Found State -->
+  <div id="not-found" style="display:none; text-align:center; padding:120px 0;">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted); margin-bottom:20px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <h2 style="font-size:2rem; margin-bottom:12px;">Product Not Found</h2>
+    <p style="color:var(--text-secondary); margin-bottom:32px;">The resource you're looking for doesn't exist or is currently unavailable.</p>
+    <a href="/" class="btn-primary" style="height:44px; padding:0 32px;">Return to Store</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Razorpay Official Checkout Script -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+  let currentProduct = null;
+  let isPurchased = false;
+
+  document.addEventListener('DOMContentLoaded', loadProduct);
+
+  async function loadProduct() {
+    const slug = new URLSearchParams(window.location.search).get('slug');
+    if (!slug) { showNotFound(); return; }
+
+    try {
+      const product = await API.get('/products/' + slug);
+      currentProduct = product;
+      document.title = product.title + ' — AIkors';
+      renderProduct(product);
+      if (Auth.isLoggedIn()) await checkPurchaseStatus(product.id);
+    } catch (err) {
+      showNotFound();
+    }
+  }
+
+  function renderProduct(p) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('product-content').style.display = 'block';
+
+    const thumbEl = document.getElementById('product-thumbnail');
+    if (p.thumbnail_url) {
+      thumbEl.innerHTML = `<img src="${p.thumbnail_url}" alt="${escapeHtml(p.title)}" class="product-hero-img">`;
+    } else {
+      thumbEl.innerHTML = `<div class="product-hero-placeholder"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></div>`;
+    }
+
+    const catEl = document.getElementById('product-category');
+    if (p.category) { catEl.textContent = p.category; catEl.style.display = 'inline-flex'; }
+
+    document.getElementById('product-title').textContent = p.title;
+    document.getElementById('product-sales').textContent = `${p.total_sales || 0} students enrolled`;
+    document.getElementById('product-description').innerHTML = (p.description || 'No description provided.').replace(/\n/g, '<br>');
+
+    if (p.tags) {
+      document.getElementById('product-tags').innerHTML = p.tags.split(',').map(t => `<span class="tag-pill">${escapeHtml(t.trim())}</span>`).join('');
+    }
+
+    document.getElementById('buy-price').textContent = formatPrice(p.price);
+    if (p.original_price) {
+      const origEl = document.getElementById('buy-original');
+      origEl.textContent = formatPrice(p.original_price);
+      origEl.style.display = 'block';
+    }
+
+    // GSAP Entry Animations
+    const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    gsap.to("#gsap-left", { opacity: 1, y: 0, duration: rm ? 0 : 0.6, ease: "power2.out" });
+    gsap.to("#gsap-right", { opacity: 1, y: 0, duration: rm ? 0 : 0.6, ease: "power2.out", delay: rm ? 0 : 0.2 });
+  }
+
+  async function checkPurchaseStatus(productId) {
+    try {
+      const orders = await API.get('/orders');
+      const purchased = orders.some(o => o.status === 'paid' && o.items.some(i => i.product_id === productId));
+      if (purchased) {
+        isPurchased = true;
+        document.getElementById('purchased-state').style.display = 'block';
+        document.getElementById('buy-state').style.display = 'none';
+      }
+    } catch (err) {}
+  }
+
+  async function initiatePurchase() {
+    if (!Auth.isLoggedIn()) {
+      Toast.info('Please log in to purchase securely');
+      window.location.href = '/login';
+      return;
+    }
+
+    const btn = document.getElementById('buy-btn');
+    setLoading(btn, true, 'Preparing checkout...');
+
+    try {
+      const orderData = await API.post('/payments/create-order', { product_ids: [currentProduct.id] });
+      const user = Auth.getUser();
+
+      const options = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'AIkors',
+        description: currentProduct.title,
+        order_id: orderData.razorpay_order_id,
+        prefill: { name: user.name, email: user.email },
+        hidden: { contact: true, email: true },
+        theme: { color: '#000000' }, // Apple/Stripe Black Style
+        handler: async (response) => {
+          await verifyPayment(response, orderData.order_id);
+        },
+        modal: {
+          ondismiss: () => { setLoading(btn, false); Toast.info('Payment cancelled'); }
+        }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+
+    } catch (err) {
+      Toast.error(err.message);
+      setLoading(btn, false);
+    }
+  }
+
+  async function verifyPayment(razorpayResponse, orderId) {
+    const btn = document.getElementById('buy-btn');
+    setLoading(btn, true, 'Verifying payment...');
+
+    try {
+      const result = await API.post('/payments/verify', {
+        razorpay_order_id: razorpayResponse.razorpay_order_id,
+        razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+        razorpay_signature: razorpayResponse.razorpay_signature,
+        order_id: orderId
+      });
+
+      if (result.success) {
+        isPurchased = true;
+        Toast.success('Payment successful');
+        document.getElementById('purchased-state').style.display = 'block';
+        document.getElementById('buy-state').style.display = 'none';
+        
+        // Trigger download overlay immediately for premium UX
+        triggerDownload();
+      }
+    } catch (err) {
+      Toast.error('Payment verification failed. Contact support.');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  // Centered Download Loader Logic
+  function triggerDownload() {
+    if (!Auth.isLoggedIn()) { window.location.href = '/login'; return; }
+    
+    const loader = document.getElementById('download-loader');
+    loader.classList.add('active'); // Show Fullscreen loader
+    
+    fetch('/api/orders/download/' + currentProduct.id, { 
+        headers: { 'Authorization': 'Bearer ' + Auth.getToken() } 
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Download failed. Ensure you own this product.');
+        return res.blob();
+      })
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = currentProduct.file_name || currentProduct.title;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        
+        setTimeout(() => {
+          loader.classList.remove('active'); // Hide loader
+          Toast.success('Download started securely!');
+        }, 800); // Artificial slight delay to show completion smoothly
+      })
+      .catch((err) => {
+        loader.classList.remove('active');
+        Toast.error(err.message || 'Download failed');
+      });
+  }
+
+  function showNotFound() {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('not-found').style.display = 'block';
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+</script>
+{% endblock %}

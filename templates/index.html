@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+{% block title %}AIkors — Study Smarter With E Book & Notes{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<style>
+  /* ─── 1. CORE VARIABLES & RESPONSIVE TYPOGRAPHY ─── */
+  :root { 
+    --hero-glow: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.15), transparent 70%); 
+    /* Alive Typography scaling perfectly from 320px to 1440px screens */
+    --text-hero: clamp(2.5rem, 6vw + 1rem, 5.5rem);
+    --text-h2: clamp(1.8rem, 4vw + 0.5rem, 3rem);
+    --text-h3: clamp(1.2rem, 2vw + 0.5rem, 1.5rem);
+    --text-body: clamp(0.95rem, 1.5vw + 0.2rem, 1.15rem);
+    --spacing-section: 80px 20px;
+  }
+  [data-theme="dark"] { --hero-glow: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.1), transparent 70%); }
+  
+  html { scroll-behavior: smooth; }
+  /* FIX: Removed custom font-family so it defaults to your original base font */
+  body { overflow-x: hidden; background: var(--bg-base); color: var(--text-primary); }
+
+  /* ─── 2. TABLET OVERRIDES (768px to 1023px) ─── */
+  @media (min-width: 768px) {
+    :root {
+      --spacing-section: 100px 40px;
+    }
+  }
+
+  /* ─── 3. DESKTOP OVERRIDES (1024px and above) ─── */
+  @media (min-width: 1024px) {
+    :root {
+      --spacing-section: 140px 60px;
+    }
+  }
+
+  /* ─── 4. COMMON COMPONENTS (Mobile First) ─── */
+  /* Hero Section */
+  .hero { 
+    position: relative; min-height: 85vh; display: flex; flex-direction: column; 
+    align-items: center; justify-content: center; text-align: center; 
+    padding: var(--spacing-section); z-index: 1; overflow: hidden;
+    background-image: var(--hero-glow);
+  }
+  
+  .orb { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; opacity: 0.5; z-index: -1; animation: float 10s infinite ease-in-out alternate; }
+  .orb-1 { width: 50vw; height: 50vw; max-width: 600px; max-height: 600px; background: rgba(59, 130, 246, 0.15); top: -10%; left: -10%; }
+  .orb-2 { width: 40vw; height: 40vw; max-width: 500px; max-height: 500px; background: rgba(16, 185, 129, 0.12); bottom: 10%; right: -10%; animation-delay: -5s; }
+  @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 50px) scale(1.1); } }
+
+  .hero-title { font-size: var(--text-hero); font-weight: 800; line-height: 1.1; letter-spacing: -0.04em; margin-bottom: 24px; max-width: 1000px; }
+  .hero-gradient-text { background: linear-gradient(135deg, var(--accent), #10B981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero-subtitle { font-size: var(--text-body); color: var(--text-secondary); max-width: 700px; margin: 0 auto 40px; line-height: 1.6; }
+
+  /* Mobile Quick Vault */
+  .mobile-quick-vault { width: 100%; margin-top: 20px; padding-bottom: 20px; }
+  .mobile-vault-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; text-align: left; padding: 0 20px; margin-bottom: 12px; }
+  .swipe-scroll { display: flex; gap: 16px; overflow-x: auto; padding: 0 20px 20px; scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none; }
+  .swipe-scroll::-webkit-scrollbar { display: none; }
+  
+  .quick-card { 
+    flex: 0 0 260px; scroll-snap-align: center; background: var(--bg-surface);
+    border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+    box-shadow: var(--shadow-sm); display: flex; flex-direction: column; text-align: left;
+  }
+  .quick-card-img { width: 100%; height: 140px; object-fit: cover; background: var(--bg-surface-hover); border-bottom: 1px solid var(--border); }
+  .quick-card-body { padding: 16px; }
+  .quick-card-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .quick-card-btn { background: var(--text-primary); color: var(--bg-base); border: none; padding: 10px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; width: 100%; cursor: pointer; transition: 0.2s; }
+
+  /* Search & Filters */
+  .catalog-section { padding: var(--spacing-section); position: relative; z-index: 2; }
+  .search-container { max-width: 800px; margin: 0 auto 40px; }
+  .mac-search { display: flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: 100px; padding: 8px 16px; box-shadow: var(--shadow-md); transition: border-color 0.3s; }
+  .mac-search:focus-within { border-color: var(--accent); }
+  .mac-search input { flex: 1; height: 44px; border: none; background: transparent; font-size: 1.05rem; color: var(--text-primary); outline: none; padding-left: 12px; }
+  
+  .filter-chips { display: flex; gap: 12px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 16px; margin-bottom: 40px; scrollbar-width: none; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; border-radius: 100px; font-size: 0.95rem; font-weight: 600; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); transition: all 0.2s; cursor: pointer; }
+  .chip.active { background: var(--text-primary); color: var(--bg-base); border-color: var(--text-primary); }
+
+  /* Product Grid */
+  .products-grid { display: grid; grid-template-columns: 1fr; gap: 24px; max-width: 1280px; margin: 0 auto; }
+  .pro-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; transition: all 0.4s ease; }
+  .pro-card-image-wrap { width: 100%; aspect-ratio: 16/10; overflow: hidden; position: relative; background: var(--bg-surface-hover); border-bottom: 1px solid var(--border); }
+  .pro-card-image { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+  .pro-badge { position: absolute; top: 16px; left: 16px; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); color: #fff; padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; z-index: 2;}
+  .pro-card-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
+  .pro-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .pro-desc { font-size: 0.95rem; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 24px; }
+  .pro-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
+  .pro-price { font-size: 1.25rem; font-weight: 800; }
+  .btn-buy { height: 40px; padding: 0 20px; border-radius: 100px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 0.9rem; border: none; cursor: pointer; transition: all 0.2s; }
+
+  /* Process & Bento (Features) */
+  .process-section, .bento-section { padding: var(--spacing-section); background: var(--bg-surface-hover); border-top: 1px solid var(--border); }
+  .section-header-center { text-align: center; max-width: 800px; margin: 0 auto 60px; }
+  .section-title { font-size: var(--text-h2); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 16px; }
+  
+  .timeline { display: flex; flex-direction: column; gap: 40px; max-width: 1000px; margin: 0 auto; }
+  .timeline-step { display: flex; flex-direction: column; gap: 16px; }
+  .timeline-icon { width: 48px; height: 48px; background: var(--bg-surface); border: 2px solid var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); }
+  .timeline-title { font-size: var(--text-h3); font-weight: 800; margin-bottom: 8px; }
+  .timeline-desc { font-size: var(--text-body); color: var(--text-secondary); line-height: 1.6; }
+
+  .bento-grid { display: grid; grid-template-columns: 1fr; gap: 24px; max-width: 1200px; margin: 0 auto; }
+  .bento-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 24px; padding: 32px; transition: transform 0.3s ease, border-color 0.3s ease; }
+  .bento-icon { width: 56px; height: 56px; border-radius: 16px; background: var(--bg-surface-hover); display: flex; align-items: center; justify-content: center; margin-bottom: 24px; border: 1px solid var(--border); color: var(--text-primary);}
+
+  @media (prefers-reduced-motion: reduce) { .orb { animation: none; } .grid-fade-in { animation: none; opacity: 1; transform: none; } .pro-card, .pro-card-image { transition: none; } }
+  .chip:focus-visible, .btn-buy:focus-visible, .quick-card-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .grid-fade-in { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── 5. TABLET & DESKTOP ENHANCEMENTS ─── */
+  @media (min-width: 768px) {
+    /* FIX: Removed the desktop spacing bug completely */
+    .mobile-quick-vault { display: none !important; margin: 0; padding: 0; } 
+    .filter-chips { justify-content: center; flex-wrap: wrap; }
+    .products-grid { grid-template-columns: repeat(2, 1fr); }
+    .bento-grid { grid-template-columns: repeat(2, 1fr); }
+    .timeline { flex-direction: row; gap: 32px; }
+    .timeline-step { flex: 1; }
+    .timeline-icon { width: 64px; height: 64px; margin-bottom: 16px; }
+  }
+
+  @media (min-width: 1024px) {
+    .products-grid { grid-template-columns: repeat(3, 1fr); }
+    .bento-grid { grid-template-columns: repeat(3, 1fr); }
+
+    /* Hero -> Catalog rhythm (desktop only).
+       The hero's 85vh min-height plus 140px bottom padding and the catalog's 140px top padding
+       stacked into a ~400px void. Hero now hugs its content; catalog padding is a single
+       variable reused for the #catalog scroll offset so anchor jumps land on the search bar. */
+    .hero { min-height: 0; padding-bottom: var(--space-8); }
+    .catalog-section {
+      --catalog-pad-top: var(--space-12);
+      padding-top: var(--catalog-pad-top);
+      scroll-margin-top: calc(var(--catalog-pad-top) * -1);
+    }
+
+    @media (hover: hover) {
+      .chip:hover { background: var(--bg-surface-hover); color: var(--text-primary); transform: translateY(-2px); }
+      .pro-card { cursor: pointer; }
+      .pro-card:hover { border-color: var(--border-strong); box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1); transform: translateY(-6px); }
+      .pro-card:hover .pro-card-image { transform: scale(1.08); }
+      .pro-card:hover .btn-buy { background: var(--accent); color: #fff; }
+      .bento-card:hover { border-color: var(--accent); transform: translateY(-5px); box-shadow: var(--shadow-lg); }
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ─── HERO SECTION ─── -->
+<section class="hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  
+  <h1 class="hero-title gsap-hero">
+    Study Smarter With<br>
+    <span class="hero-gradient-text">E Book & Notes</span>
+  </h1>
+  
+  <p class="hero-subtitle gsap-hero">
+    Instant access to top-tier assignment notes, banking study material, PDFs, and educational resources. Simple, affordable, and ready to download.
+  </p>
+
+  <!-- Mobile Quick Vault -->
+  <div class="mobile-quick-vault gsap-hero">
+    <div class="mobile-vault-title">Quick Vault<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px;"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
+    <div class="swipe-scroll" id="mobile-swipe-grid">
+      <!-- JS Injects Swipeable Cards Here -->
+    </div>
+  </div>
+</section>
+
+<!-- ─── CATALOG SECTION ─── -->
+<section class="catalog-section" id="catalog">
+  <div class="search-container gsap-scroll">
+    <div class="mac-search">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="search-input" aria-label="Search study material" autocomplete="off" placeholder="Search for PDFs, Banking Notes, Assignments..." oninput="debounceSearch()">
+    </div>
+  </div>
+
+  <!-- FIX: Emojis replaced with Premium SVG Icons -->
+  <div class="filter-chips gsap-scroll" id="category-pills">
+    <button class="chip active" onclick="filterCategory(null, this)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      All Material
+    </button>
+    <button class="chip" onclick="filterCategory('Notes', this)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+      Notes
+    </button>
+    <button class="chip" onclick="filterCategory('PDF', this)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M10 18v-6h4"></path></svg>
+      PDFs
+    </button>
+    <button class="chip" onclick="filterCategory('Banking', this)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+      Banking
+    </button>
+    <button class="chip" onclick="filterCategory('Assignment', this)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+      Assignments
+    </button>
+    <button class="chip" onclick="filterCategory('Exam', this)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+      Exam Prep
+    </button>
+  </div>
+
+  <div class="products-grid" id="products-grid">
+    <script>document.write(Array(6).fill(typeof productSkeleton !== 'undefined' ? productSkeleton() : '').join(''));</script>
+  </div>
+
+  <div id="no-products" style="display:none; text-align:center; padding: 60px 20px; background:var(--bg-surface-hover); border-radius:24px; border:1px dashed var(--border-strong); max-width:800px; margin: 0 auto;">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px; color:var(--text-muted);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <h3 style="font-size: var(--text-h3); margin-bottom: 8px;">No material found</h3>
+    <p style="color:var(--text-secondary);">Try adjusting your filters or search keywords.</p>
+  </div>
+</section>
+
+<!-- ─── HOW TO ACCESS (Process) ─── -->
+<section class="process-section">
+  <div class="section-header-center gsap-scroll">
+    <h2 class="section-title">How to Access Your Notes</h2>
+    <p class="hero-subtitle" style="margin-bottom:0;">Instant digital delivery straight to your personal vault.</p>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-step gsap-scroll">
+      <div class="timeline-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </div>
+      <div>
+        <h3 class="timeline-title">1. Search & Select</h3>
+        <p class="timeline-desc">Browse our catalog and find the exact E-book, Assignment, or Study Material you need.</p>
+      </div>
+    </div>
+
+    <div class="timeline-step gsap-scroll">
+      <div class="timeline-icon" style="color: #10B981; border-color:#10B981;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      </div>
+      <div>
+        <h3 class="timeline-title">2. Secure Payment</h3>
+        <p class="timeline-desc">Complete your purchase using our 100% secure payment gateway (UPI, Cards, Netbanking).</p>
+      </div>
+    </div>
+
+    <div class="timeline-step gsap-scroll">
+      <div class="timeline-icon" style="color: #8B5CF6; border-color:#8B5CF6;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      </div>
+      <div>
+        <!-- FIX: Updated How to access logic -->
+        <h3 class="timeline-title">3. Instant Unlock & Access</h3>
+        <p class="timeline-desc">The moment your payment is successful, your study material will be unlocked instantly. You will get full access to download the PDF/ZIP files directly from your dashboard for lifetime offline study.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── WHY CHOOSE US (Bento) ─── -->
+<section class="bento-section">
+  <div class="section-header-center gsap-scroll">
+    <h2 class="section-title">Why Choose Us?</h2>
+    <p class="hero-subtitle">Premium quality study resources tailored for your success.</p>
+  </div>
+  
+  <div class="bento-grid">
+    <div class="bento-card gsap-scroll">
+      <div class="bento-icon" style="color:#F59E0B;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
+      <h3 style="font-size:var(--text-h3); margin-bottom:12px; font-weight:800;">Always Updated</h3>
+      <p style="color:var(--text-secondary); line-height:1.6;">Our notes and assignments are constantly verified and updated to match the latest academic standards.</p>
+    </div>
+    
+    <div class="bento-card gsap-scroll">
+      <div class="bento-icon" style="color: #EC4899;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+      <h3 style="font-size:var(--text-h3); margin-bottom:12px; font-weight:800;">Lifetime Vault</h3>
+      <p style="color:var(--text-secondary); line-height:1.6;">Pay once, keep forever. Access your purchased materials from your account dashboard anytime, anywhere.</p>
+    </div>
+
+    <div class="bento-card gsap-scroll">
+      <div class="bento-icon" style="color: #3B82F6;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
+      <h3 style="font-size:var(--text-h3); margin-bottom:12px; font-weight:800;">Trusted Quality</h3>
+      <p style="color:var(--text-secondary); line-height:1.6;">Join thousands of students who rely on our premium, well-structured PDFs to score better grades.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentCategory = null;
+  let searchTimeout = null;
+  let allCachedProducts = []; 
+
+  function initGSAP() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      gsap.set('.gsap-hero, .gsap-scroll', { opacity: 1, y: 0 });
+      return;
+    }
+    gsap.registerPlugin(ScrollTrigger);
+    
+    // Alive Animations
+    gsap.fromTo(".gsap-hero", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: "power2.out" });
+    
+    gsap.utils.toArray('.gsap-scroll').forEach(element => {
+      gsap.fromTo(element, 
+        { opacity: 0, y: 30 }, 
+        { opacity: 1, y: 0, duration: 0.8, ease: "power2.out", scrollTrigger: { trigger: element, start: "top 90%", once: true } }
+      );
+    });
+  }
+
+  async function loadProducts() {
+    try {
+      const response = await API.get('/products?limit=50');
+      allCachedProducts = Array.isArray(response) ? response : (response?.items || []);
+      renderGridProducts(allCachedProducts);
+      renderMobileQuickVault(allCachedProducts.slice(0, 5));
+    } catch (err) {
+      document.getElementById('products-grid').innerHTML = '';
+      document.getElementById('no-products').style.display = 'block';
+    }
+  }
+
+  function applyFilters() {
+    const searchVal = document.getElementById('search-input').value.toLowerCase().trim();
+    let filtered = allCachedProducts;
+    if (currentCategory) filtered = filtered.filter(p => p.category && p.category.toLowerCase().includes(currentCategory.toLowerCase()));
+    if (searchVal) filtered = filtered.filter(p => p.title.toLowerCase().includes(searchVal) || (p.category && p.category.toLowerCase().includes(searchVal)));
+    renderGridProducts(filtered);
+  }
+
+  function filterCategory(cat, btnElement) {
+    currentCategory = cat;
+    document.querySelectorAll('.filter-chips .chip').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    applyFilters();
+  }
+
+  function debounceSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => { applyFilters(); }, 300); 
+  }
+
+  function renderGridProducts(products) {
+    const grid = document.getElementById('products-grid');
+    const noProducts = document.getElementById('no-products');
+    if (!products || products.length === 0) { grid.innerHTML = ''; noProducts.style.display = 'block'; return; }
+    noProducts.style.display = 'none';
+    
+    grid.innerHTML = products.map((p, i) => {
+      const thumb = p.thumbnail_url ? `<img src="${p.thumbnail_url}" alt="${escapeHtml(p.title)}" class="pro-card-image" loading="lazy">` : `<div class="pro-card-image" style="background:var(--bg-surface-hover);"></div>`;
+      return `
+        <div class="pro-card grid-fade-in" style="animation-delay: ${(i % 6) * 0.1}s" onclick="buyClick('${encodeURIComponent(p.slug)}')">
+          <div class="pro-card-image-wrap">${p.category ? `<div class="pro-badge">${escapeHtml(p.category)}</div>` : ''}${thumb}</div>
+          <div class="pro-card-body">
+            <h3 class="pro-title">${escapeHtml(p.title)}</h3>
+            <p class="pro-desc">${escapeHtml(p.short_description || p.description || 'Premium material.')}</p>
+            <div class="pro-footer">
+              <span class="pro-price">${typeof formatPrice !== 'undefined' ? formatPrice(p.price) : '₹'+p.price}</span>
+              <!-- FIX: Text changed to Unlock -->
+              <button class="btn-buy" onclick="event.stopPropagation(); buyClick('${encodeURIComponent(p.slug)}')">Unlock</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderMobileQuickVault(products) {
+    const swipeGrid = document.getElementById('mobile-swipe-grid');
+    if(!products || products.length === 0) { swipeGrid.innerHTML = ''; return; }
+    swipeGrid.innerHTML = products.map(p => {
+      const thumb = p.thumbnail_url ? `<img src="${p.thumbnail_url}" alt="${escapeHtml(p.title)}" class="quick-card-img" loading="lazy">` : `<div class="quick-card-img" style="background:var(--bg-surface-hover);"></div>`;
+      return `
+        <div class="quick-card" onclick="buyClick('${encodeURIComponent(p.slug)}')">
+          ${thumb}
+          <div class="quick-card-body">
+            <div class="quick-card-title">${escapeHtml(p.title)}</div>
+            <!-- FIX: Text changed to Unlock -->
+            <button class="quick-card-btn" onclick="event.stopPropagation(); buyClick('${encodeURIComponent(p.slug)}')">Unlock for ${typeof formatPrice !== 'undefined' ? formatPrice(p.price) : '₹'+p.price}</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function buyClick(slug) {
+    if (typeof Auth !== 'undefined' && !Auth.isLoggedIn()) { 
+      if(typeof openLoginModal === 'function') openLoginModal(); else window.location.href = '/login';
+      return; 
+    }
+    window.location.href = '/product-page?slug=' + slug;
+  }
+
+  function escapeHtml(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  document.addEventListener('DOMContentLoaded', () => { initGSAP(); loadProducts(); });
+</script>
+{% endblock %}

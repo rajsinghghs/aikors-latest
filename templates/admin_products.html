@@ -1,0 +1,266 @@
+{% extends "admin_base.html" %}
+{% block title %}Manage Products — AIkors Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+  .modal-overlay { position: fixed; inset: 0; z-index: 3000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; background: var(--bg-surface); border-radius: var(--radius-xl); padding: 32px; position: relative; box-shadow: var(--shadow-modal);}
+  .modal-close { position:absolute; top:20px; right:20px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-secondary);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">Products</h2>
+  <div style="display:flex; gap:12px;">
+    <input type="text" id="search-input" class="search-input" placeholder="Search Title or Category..." oninput="handleSearch()">
+    <button onclick="openProductForm(null)" class="btn-primary">Add Product</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr><th>Product</th><th>Pricing</th><th>Sales Count</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="table-body">
+      <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination-container" class="pagination"></div>
+
+<!-- Add/Edit Product Modal -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeProductForm()">✕</button>
+    <h3 id="modal-title" style="font-size:1.5rem; margin-bottom:24px;">Add Product</h3>
+    <form id="product-form" onsubmit="saveProduct(event)">
+      <input type="hidden" id="edit-id">
+      
+      <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input id="p-title" class="form-input" required>
+      </div>
+      
+      <!-- 🚀 NEW: Short Description, Description, Tags -->
+      <div class="form-group">
+        <label class="form-label">Short Description</label>
+        <input id="p-short-desc" class="form-input" placeholder="A brief one-line summary">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Full Description</label>
+        <textarea id="p-desc" class="form-input" rows="4" placeholder="Detailed product description..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <input id="p-tags" class="form-input" placeholder="e.g. course, python, notes (comma separated)">
+      </div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group"><label class="form-label">Price (₹) *</label><input id="p-price" class="form-input" type="number" required></div>
+        <div class="form-group"><label class="form-label">Original Price (₹)</label><input id="p-original" class="form-input" type="number"></div>
+      </div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group"><label class="form-label">Category</label><input id="p-category" class="form-input" placeholder="Notes, PDFs, etc."></div>
+        <div class="form-group"><label class="form-label">Sales Count (Adjustable)</label><input id="p-sales" class="form-input" type="number" placeholder="0"></div>
+      </div>
+      
+      <div class="form-group" style="display:flex; gap:16px; align-items:center; margin-bottom: 24px;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="p-active"> Is Active (Visible)</label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="p-featured"> Featured</label>
+      </div>
+      
+      <div id="upload-section" style="display:none; background:var(--bg-surface-hover); padding:16px; border-radius:var(--radius-md); margin-bottom:24px; border: 1px dashed var(--border-strong);">
+        <div style="margin-bottom:16px;">
+          <label class="form-label">Upload Thumbnail (Image)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="file" id="thumb-file" accept="image/*" class="form-input" style="padding:8px;">
+            <button type="button" onclick="uploadMedia('thumbnail')" class="btn-ghost">Upload</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Upload Product File (PDF/ZIP)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="file" id="product-file" class="form-input" style="padding:8px;">
+            <button type="button" onclick="uploadMedia('file')" class="btn-ghost">Upload</button>
+          </div>
+        </div>
+      </div>
+      
+      <div style="display:flex; justify-content:flex-end; gap:12px;">
+        <button type="button" onclick="closeProductForm()" class="btn-ghost">Cancel</button>
+        <button type="submit" class="btn-primary" id="save-product-btn">Save Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let state = { page: 1, limit: 15, search: '', total: 0 };
+  let searchTimeout = null;
+  let allLoadedProducts = []; 
+
+  async function loadData() {
+    const skip = (state.page - 1) * state.limit;
+    let url = `/admin/products?skip=${skip}&limit=${state.limit}`;
+    if (state.search) url += `&search=${encodeURIComponent(state.search)}`;
+
+    try {
+      const res = await API.get(url);
+      const items = res.items || [];
+      state.total = res.total || 0;
+      
+      allLoadedProducts = items;
+
+      const html = items.map(p => `
+        <tr>
+          <td>
+            <div style="font-weight:600;">${p.title}</div>
+            <div style="font-size:0.8rem; color:var(--accent);">${p.category || '-'}</div>
+          </td>
+          <td>
+            <div style="font-weight:700;">${formatPrice(p.price)}</div>
+            ${p.original_price ? `<div style="font-size:0.8rem; text-decoration:line-through; color:var(--text-muted);">${formatPrice(p.original_price)}</div>` : ''}
+          </td>
+          <td><span style="font-weight:600;">${p.total_sales || 0}</span> enrolled</td>
+          <td><span class="badge ${p.is_active ? 'badge-success' : 'badge-danger'}">${p.is_active ? 'Active':'Hidden'}</span></td>
+          <td>
+            <button class="btn-ghost" style="padding:6px 14px; height:auto;" onclick="openProductForm(${p.id})">Edit</button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('table-body').innerHTML = html || `<tr><td colspan="5" style="text-align:center; padding:24px;">No products found</td></tr>`;
+      updatePaginationUI();
+    } catch(err) { Toast.error("Failed to load products"); }
+  }
+
+  function handleSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      state.search = document.getElementById('search-input').value;
+      state.page = 1;
+      loadData();
+    }, 400);
+  }
+
+  function updatePaginationUI() {
+    const container = document.getElementById('pagination-container');
+    const totalPages = Math.ceil(state.total / state.limit) || 1;
+    const start = state.total === 0 ? 0 : ((state.page - 1) * state.limit) + 1;
+    const end = Math.min(state.page * state.limit, state.total);
+
+    container.innerHTML = `
+      <div class="pagination-info">Showing <span>${start}</span> to <span>${end}</span> of <span>${state.total}</span></div>
+      <div class="page-btns">
+        <button class="page-btn" onclick="changePage(-1)" ${state.page === 1 ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg> Previous
+        </button>
+        <button class="page-btn" onclick="changePage(1)" ${state.page === totalPages ? 'disabled' : ''}>
+          Next <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    `;
+  }
+
+  function changePage(delta) { state.page += delta; loadData(); }
+
+  // 🚀 FIX: Injecting New Data into Form
+  function openProductForm(id) {
+    document.getElementById('product-form').reset();
+    document.getElementById('edit-id').value = '';
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('modal-title').textContent = 'Add Product';
+    
+    // Clear new fields manually just in case
+    document.getElementById('p-short-desc').value = '';
+    document.getElementById('p-desc').value = '';
+    document.getElementById('p-tags').value = '';
+    
+    if (id) {
+      const p = allLoadedProducts.find(x => x.id === id);
+      if(p) {
+        document.getElementById('modal-title').textContent = 'Edit Product';
+        document.getElementById('edit-id').value = p.id;
+        document.getElementById('p-title').value = p.title;
+        document.getElementById('p-short-desc').value = p.short_description || '';
+        document.getElementById('p-desc').value = p.description || '';
+        document.getElementById('p-tags').value = p.tags || '';
+        document.getElementById('p-price').value = p.price;
+        document.getElementById('p-original').value = p.original_price || '';
+        document.getElementById('p-category').value = p.category || '';
+        document.getElementById('p-sales').value = p.total_sales || 0;
+        document.getElementById('p-active').checked = p.is_active;
+        document.getElementById('p-featured').checked = p.is_featured;
+        document.getElementById('upload-section').style.display = 'block';
+      }
+    }
+    document.getElementById('product-modal').classList.add('open');
+  }
+
+  function closeProductForm() { document.getElementById('product-modal').classList.remove('open'); }
+
+  async function saveProduct(e) {
+    e.preventDefault();
+    const btn = document.getElementById('save-product-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = 'Saving...'; btn.disabled = true;
+    
+    const id = document.getElementById('edit-id').value;
+    
+    // 🚀 FIX: Construct payload with description fields
+    const payload = {
+      title: document.getElementById('p-title').value,
+      short_description: document.getElementById('p-short-desc').value,
+      description: document.getElementById('p-desc').value,
+      tags: document.getElementById('p-tags').value,
+      price: parseFloat(document.getElementById('p-price').value),
+      original_price: parseFloat(document.getElementById('p-original').value) || null,
+      category: document.getElementById('p-category').value,
+      total_sales: parseInt(document.getElementById('p-sales').value) || 0,
+      is_active: document.getElementById('p-active').checked,
+      is_featured: document.getElementById('p-featured').checked
+    };
+
+    try {
+      if(id) {
+        await API.put(`/products/${id}`, payload);
+        Toast.success('Product updated');
+        closeProductForm();
+      } else {
+        const res = await API.post('/products', payload);
+        document.getElementById('edit-id').value = res.id;
+        document.getElementById('upload-section').style.display = 'block';
+        Toast.success('Product created. Now upload files!');
+        btn.innerHTML = originalText; btn.disabled = false;
+        return; 
+      }
+      loadData();
+    } catch(err) { Toast.error(err.message); }
+    finally { btn.innerHTML = originalText; btn.disabled = false; }
+  }
+
+  async function uploadMedia(type) {
+    const id = document.getElementById('edit-id').value;
+    const fileInput = document.getElementById(type === 'thumbnail' ? 'thumb-file' : 'product-file');
+    if(!fileInput.files[0]) { Toast.error('Please select a file first'); return; }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    
+    try {
+      await API.upload(`/products/${id}/upload-${type}`, formData);
+      Toast.success(`${type} uploaded successfully!`);
+    } catch(err) { Toast.error(err.message); }
+  }
+
+  setTimeout(loadData, 100);
+</script>
+{% endblock %}

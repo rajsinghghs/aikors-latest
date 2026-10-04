@@ -1,0 +1,129 @@
+{% extends "admin_base.html" %}
+{% block title %}User Detail — AIkors Admin{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 16px;">
+  <div style="display:flex; align-items:center; gap:16px;">
+    <button onclick="window.history.back()" class="btn-ghost" style="height:36px; padding:0 12px;">&larr; Back</button>
+    <h2 class="page-title">User Details</h2>
+  </div>
+</div>
+
+<input type="hidden" id="current-user-id" value="{{ user_id }}">
+
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:20px; margin-bottom:32px;">
+  <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-sm);">
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">Profile</p>
+    <h3 id="ud-name" style="margin:0 0 4px 0; font-size:1.4rem;">Loading...</h3>
+    <p id="ud-email" style="margin:0; font-weight:500; color:var(--text-muted);">-</p>
+    <div style="margin-top:16px;">
+      <button id="block-btn" class="btn-ghost" style="padding:4px 12px; height:auto; color:var(--danger); border-color:var(--danger);" onclick="toggleBlockStatus()">Block User</button>
+    </div>
+  </div>
+  
+  <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-sm);">
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">Financials</p>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+      <div>
+        <p style="margin:0 0 4px 0; font-size:0.9rem;">Total Spent</p>
+        <h3 id="ud-spent" style="margin:0; font-size:1.8rem; color:var(--success);">-</h3>
+      </div>
+      <div style="text-align:right;">
+        <p style="margin:0 0 4px 0; font-size:0.9rem;">Total Orders</p>
+        <h3 id="ud-orders-count" style="margin:0; font-size:1.8rem;">-</h3>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-sm);">
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">Supreme Action: Force Password</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <input type="text" id="ud-new-password" class="search-input" placeholder="Enter new password" style="width:100%; min-width:auto;">
+      <button onclick="forceChangePassword()" class="btn-primary" style="width:100%;">Update Password</button>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-bottom:16px;">Order History</h3>
+<div class="table-wrap">
+  <table class="data-table">
+    <!-- 🚀 NEW: Added Products Purchased Column -->
+    <thead><tr><th>Order ID</th><th>Products Purchased</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody id="ud-orders-body"><tr><td colspan="5" style="text-align:center;">Loading orders...</td></tr></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let userData = null;
+  const userId = document.getElementById('current-user-id').value;
+
+  async function loadUserDetail() {
+    try {
+      const data = await API.get(`/admin/users/${userId}/details`);
+      userData = data.user_info;
+      
+      document.getElementById('ud-name').textContent = userData.name;
+      document.getElementById('ud-email').textContent = userData.email;
+      document.getElementById('ud-spent').textContent = formatPrice(data.total_spent);
+      document.getElementById('ud-orders-count').textContent = data.total_orders_count;
+      
+      // Update Block Button state
+      const blockBtn = document.getElementById('block-btn');
+      if (userData.is_active) {
+        blockBtn.textContent = 'Block User';
+        blockBtn.style.color = 'var(--danger)'; blockBtn.style.borderColor = 'var(--danger)';
+      } else {
+        blockBtn.textContent = 'Unblock User';
+        blockBtn.style.color = 'var(--success)'; blockBtn.style.borderColor = 'var(--success)';
+      }
+
+      // 🚀 NEW: Render Orders with Product Names
+      const tbody = document.getElementById('ud-orders-body');
+      if(!data.order_history.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:24px;">No orders found for this user.</td></tr>`;
+      } else {
+        tbody.innerHTML = data.order_history.map(o => {
+          
+          // Generate list of product names
+          const productsList = o.items && o.items.length > 0 
+            ? o.items.map(i => `<div style="font-weight:600; color:var(--text-primary); font-size:0.85rem;">• ${i.product ? i.product.title : 'Unknown Item'}</div>`).join('')
+            : '<span style="color:var(--text-muted); font-size:0.8rem;">No items</span>';
+
+          return `
+            <tr>
+              <td style="font-weight:600;">#${o.id}</td>
+              <td>${productsList}</td>
+              <td style="font-weight:bold;">${formatPrice(o.total_amount)}</td>
+              <td><span class="badge ${o.status==='paid'?'badge-success':'badge-warning'}">${o.status.toUpperCase()}</span></td>
+              <td>${formatDate(o.created_at)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    } catch(err) { Toast.error('Failed to load user details'); }
+  }
+
+  async function toggleBlockStatus() {
+    try {
+      await API.put(`/admin/users/${userId}`, { is_active: !userData.is_active });
+      Toast.success(userData.is_active ? 'User blocked successfully' : 'User unblocked successfully');
+      loadUserDetail(); // Refresh data
+    } catch(err) { Toast.error('Failed to update user status'); }
+  }
+
+  async function forceChangePassword() {
+    const newPass = document.getElementById('ud-new-password').value;
+    if(!newPass || newPass.length < 6) { Toast.error("Password must be at least 6 characters"); return; }
+    
+    try {
+      await API.patch(`/admin/users/${userId}/force-password`, { new_password: newPass });
+      Toast.success('Password changed successfully!');
+      document.getElementById('ud-new-password').value = '';
+    } catch(err) { Toast.error(err.message); }
+  }
+
+  setTimeout(loadUserDetail, 100);
+</script>
+{% endblock %}

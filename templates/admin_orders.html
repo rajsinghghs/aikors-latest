@@ -1,0 +1,110 @@
+{% extends "admin_base.html" %}
+{% block title %}Manage Orders — AIkors Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">Orders</h2>
+  <input type="text" id="search-input" class="search-input" placeholder="Search by Order ID or Email..." oninput="handleSearch()">
+</div>
+
+<div class="table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr><th>Order Details</th><th>User Details</th><th>Amount</th><th>Ref ID</th><th>Status Action</th></tr>
+    </thead>
+    <tbody id="table-body">
+      <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination-container" class="pagination"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let state = { page: 1, limit: 15, search: '', total: 0 };
+  let searchTimeout = null;
+
+  async function loadData() {
+    const skip = (state.page - 1) * state.limit;
+    let url = `/admin/orders?skip=${skip}&limit=${state.limit}`;
+    if (state.search) url += `&search=${encodeURIComponent(state.search)}`;
+
+    try {
+      const res = await API.get(url);
+      const items = res.items || [];
+      state.total = res.total || 0;
+      
+      const html = items.map(o => `
+        <tr>
+          <td>
+            <div style="font-weight:600;">#${o.id}</div>
+            <div style="font-size:0.8rem; color:var(--text-secondary);">${formatDate(o.created_at)}</div>
+          </td>
+          <td>
+            <div style="font-weight:600;">${o.user && o.user.name ? o.user.name : '-'}</div>
+            <div style="font-size:0.8rem; color:var(--text-secondary);">ID: ${o.user_id || '-'} | ${o.user && o.user.email ? o.user.email : '-'}</div>
+          </td>
+          <td style="font-weight:700;">${formatPrice(o.total_amount)}</td>
+          <td style="font-size:0.85rem; color:var(--text-muted);">${o.razorpay_order_id || '-'}</td>
+          <td>
+            <select style="padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-surface); font-size: 0.85rem; font-weight:600; cursor:pointer; color: ${o.status === 'paid' ? 'var(--success)' : 'inherit'};" onchange="changeOrderStatus(${o.id}, this.value)">
+              <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Pending</option>
+              <option value="paid" ${o.status === 'paid' ? 'selected' : ''}>Paid</option>
+              <option value="failed" ${o.status === 'failed' ? 'selected' : ''}>Failed</option>
+              <option value="refunded" ${o.status === 'refunded' ? 'selected' : ''}>Refunded</option>
+            </select>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('table-body').innerHTML = html || `<tr><td colspan="5" style="text-align:center; padding:24px;">No orders found</td></tr>`;
+      updatePaginationUI();
+    } catch(err) { Toast.error("Failed to load orders"); }
+  }
+
+  function handleSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      state.search = document.getElementById('search-input').value;
+      state.page = 1;
+      loadData();
+    }, 400);
+  }
+
+function updatePaginationUI() {
+    const container = document.getElementById('pagination-container');
+    const totalPages = Math.ceil(state.total / state.limit) || 1;
+    const start = state.total === 0 ? 0 : ((state.page - 1) * state.limit) + 1;
+    const end = Math.min(state.page * state.limit, state.total);
+
+    container.innerHTML = `
+      <div class="pagination-info">Showing <span>${start}</span> to <span>${end}</span> of <span>${state.total}</span></div>
+      <div class="page-btns">
+        <button class="page-btn" onclick="changePage(-1)" ${state.page === 1 ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Previous
+        </button>
+        <button class="page-btn" onclick="changePage(1)" ${state.page === totalPages ? 'disabled' : ''}>
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    `;
+  }
+
+  function changePage(delta) { state.page += delta; loadData(); }
+
+  async function changeOrderStatus(id, newStatus) {
+    try {
+      await API.patch(`/admin/orders/${id}`, { status: newStatus });
+      Toast.success(`Order #${id} marked as ${newStatus}`);
+    } catch(err) { 
+      Toast.error(err.message); 
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  }
+
+  setTimeout(loadData, 100);
+</script>
+{% endblock %}

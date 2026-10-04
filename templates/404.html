@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Page not found — AIkors{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block content %}
+<section class="notfound">
+  <div class="notfound-code reveal" aria-hidden="true">404</div>
+  <h1 class="reveal" data-reveal-delay="80" style="font-size: var(--text-h2); margin: 8px 0 12px;">We couldn't find that page</h1>
+  <p class="reveal" data-reveal-delay="140">The link may be broken, or the page may have been moved or removed. Head back to the store to keep studying.</p>
+  <div class="notfound-actions reveal" data-reveal-delay="200">
+    <a href="/" class="btn-primary btn-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Back to home
+    </a>
+    <a href="/#catalog" class="btn-ghost btn-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+      Browse study material
+    </a>
+  </div>
+</section>
+{% endblock %}

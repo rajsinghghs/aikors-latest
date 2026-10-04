@@ -1,0 +1,103 @@
+{% extends "admin_base.html" %}
+{% block title %}Payments — AIkors Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">Payments Log</h2>
+  <input type="text" id="search-input" class="search-input" placeholder="Search Pay ID or Order ID..." oninput="handleSearch()">
+</div>
+
+<div class="table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Payment IDs</th>
+        <th>Order ID</th>
+        <th>Amount</th>
+        <th>Method</th>
+        <th>Status</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+      <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination-container" class="pagination"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let state = { page: 1, limit: 15, search: '', total: 0 };
+  let searchTimeout = null;
+
+  async function loadData() {
+    const skip = (state.page - 1) * state.limit;
+    let url = `/api/admin/payments?skip=${skip}&limit=${state.limit}`;
+    if (state.search) url += `&search=${encodeURIComponent(state.search)}`;
+
+    try {
+      const res = await API.get(url);
+      const items = res.items || [];
+      state.total = res.total || 0;
+      
+      const html = items.map(p => `
+        <tr>
+          <td>
+            <div style="font-weight:600; color:var(--text-primary);">RZP ID: ${p.razorpay_payment_id || '-'}</div>
+            <div style="font-size:0.8rem; color:var(--text-secondary);">Ref: ${p.razorpay_order_id || '-'}</div>
+          </td>
+          <td><span style="font-weight:600;">#${p.order_id}</span></td>
+          <td style="font-weight:700;">${p.currency} ${p.amount}</td>
+          <td>${p.method || 'N/A'}</td>
+          <td><span class="badge ${p.status === 'captured' ? 'badge-success' : (p.status === 'failed' ? 'badge-danger' : 'badge-warning')}">${p.status.toUpperCase()}</span></td>
+          <td>${formatDate(p.created_at)}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('table-body').innerHTML = html || `<tr><td colspan="6" style="text-align:center; padding:24px;">No payments found</td></tr>`;
+      updatePaginationUI();
+    } catch(err) { 
+      Toast.error("Failed to load payments"); 
+    }
+  }
+
+  function handleSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      state.search = document.getElementById('search-input').value;
+      state.page = 1;
+      loadData();
+    }, 400);
+  }
+
+function updatePaginationUI() {
+    const container = document.getElementById('pagination-container');
+    const totalPages = Math.ceil(state.total / state.limit) || 1;
+    const start = state.total === 0 ? 0 : ((state.page - 1) * state.limit) + 1;
+    const end = Math.min(state.page * state.limit, state.total);
+
+    container.innerHTML = `
+      <div class="pagination-info">Showing <span>${start}</span> to <span>${end}</span> of <span>${state.total}</span></div>
+      <div class="page-btns">
+        <button class="page-btn" onclick="changePage(-1)" ${state.page === 1 ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Previous
+        </button>
+        <button class="page-btn" onclick="changePage(1)" ${state.page === totalPages ? 'disabled' : ''}>
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    `;
+  }
+
+  function changePage(delta) {
+    state.page += delta;
+    loadData();
+  }
+
+  setTimeout(loadData, 100);
+</script>
+{% endblock %}

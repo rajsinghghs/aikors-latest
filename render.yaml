@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: aikors
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # envVars:
+    #   - key: SECRET_KEY
+    #     value: aikors-secret-key-change-this
+    #   - key: ADMIN_EMAIL
+    #     value: admin@example.com
+    #   - key: ADMIN_PASSWORD
+    #     value: AdminPass123!
+    #   - key: RAZORPAY_KEY_ID
+    #     value: your_key_here
+    #   - key: RAZORPAY_KEY_SECRET
+    #     value: your_secret_here

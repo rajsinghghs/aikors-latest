@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+python-dotenv
+pydantic[email]
+python-jose[cryptography]
+passlib
+bcrypt==4.0.1
+razorpay
+aiofiles
+python-multipart
+a2wsgi
+authlib
+httpx
+google-auth
+jinja2

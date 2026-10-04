@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Admin Panel{% endblock %}</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* 🚀 FIX: Hidden by default, handled safely via CSS class */
+    .admin-layout { display: none; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    .admin-layout.ready { display: grid; }
+    
+    /* Sidebar Base */
+    .admin-sidebar { background: var(--bg-surface); border-right: 1px solid var(--border); padding: 24px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 1001; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .admin-brand { padding: 8px 12px 24px; font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; color: var(--text-primary); border-bottom: 1px solid var(--border); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .admin-nav { list-style: none; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .admin-nav a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); color: var(--text-secondary); font-size: 0.95rem; font-weight: 500; transition: var(--transition); text-decoration: none; cursor: pointer; }
+    .admin-nav a:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+    .admin-nav a.active { background: var(--primary); color: var(--on-primary); font-weight: 600; box-shadow: var(--shadow-sm); }
+    .admin-main { padding: 40px; overflow-y: auto; background: var(--bg-base); width: 100%; box-sizing: border-box; }
+    
+    /* Global Admin Styles */
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .page-title { font-size: 1.8rem; margin: 0; }
+    .search-input { min-width: 260px; flex-grow: 1; max-width: 400px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); font-size: 0.9rem; color: var(--text-primary); }
+    .table-wrap { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow-x: auto; box-shadow: var(--shadow-sm); }
+    .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .data-table th { padding: 14px 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); background: var(--bg-surface-hover); border-bottom: 1px solid var(--border); white-space: nowrap;}
+    .data-table td { padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .badge { padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    
+    /* FAANG Premium Pagination CSS */
+    .pagination { 
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
+      padding: 16px 24px; background: var(--bg-surface); 
+      border: 1px solid var(--border); border-top: none; 
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); 
+      margin-bottom: 30px; margin-top: 10px;
+    }
+    .pagination-info { font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
+    .pagination-info span { font-weight: 700; color: var(--text-primary); }
+    .page-btns { display: flex; gap: 12px; align-items: center; }
+    .page-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); border-radius: var(--radius-md); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all var(--transition); box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .page-btn svg { width: 16px; height: 16px; transition: transform var(--transition); }
+    .page-btn:hover:not(:disabled) { background: var(--bg-surface-hover); border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .page-btn:active:not(:disabled) { transform: translateY(0); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; background: var(--bg-base); box-shadow: none; }
+
+    /* 🚀 Overlay */
+    .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    .sidebar-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    /* 🚀 Mobile Header */
+    .mobile-header { display: none; padding: 16px 24px; background: var(--bg-surface); border-bottom: 1px solid var(--border); align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 900; box-shadow: var(--shadow-sm); }
+    .mobile-brand { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; color: var(--text-primary); }
+    .menu-toggle-btn { background: none; border: none; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: var(--radius-sm); }
+    .menu-toggle-btn:hover { background: var(--bg-surface-hover); }
+    .mobile-close-btn { display: none; }
+
+    /* 🚀 MOBILE RESPONSIVE CSS */
+    @media (max-width: 900px) {
+      .admin-layout.ready { display: flex; flex-direction: column; }
+      .mobile-header { display: flex; }
+      .admin-main { padding: 24px 16px; }
+      
+      /* Off-Canvas Sidebar */
+      .admin-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; transform: translateX(-100%); box-shadow: var(--shadow-lg); border-right: none; }
+      .admin-sidebar.open { transform: translateX(0); }
+      .mobile-close-btn { display: flex; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div id="toast-container"></div>
+<div id="auth-required" style="display:none; text-align:center; padding:100px 20px;">
+  <h2>Admin Access Required</h2>
+  <button onclick="window.location.href='/login'" class="btn-primary">Login Now</button>
+</div>
+
+<!-- Overlay -->
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- Removed inline style block -->
+<div class="admin-layout" id="admin-layout">
+  
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <div class="mobile-brand">AIkors Admin</div>
+    <button class="menu-toggle-btn" onclick="openSidebar()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <aside class="admin-sidebar">
+    <div class="admin-brand">
+      AIkors Admin
+      <button class="menu-toggle-btn mobile-close-btn" onclick="closeSidebar()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <nav class="admin-nav">
+      <a href="/admin" id="nav-dashboard">Dashboard</a>
+      <a href="/admin/users" id="nav-users">Users</a>
+      <a href="/admin/products" id="nav-products">Products</a>
+      <a href="/admin/orders" id="nav-orders">Orders</a>
+      <a href="/admin/payments" id="nav-payments">Payments</a>
+    </nav>
+    <div style="margin-top: auto; padding-top: 24px; display: flex; flex-direction: column; gap: 8px;">
+     
+      <a href="/" class="btn-ghost" style="width: 100%; justify-content:center;">View Store</a>
+      <button onclick="Auth.clear(); window.location.href='/login';" class="btn-ghost" style="width: 100%; justify-content:center; color:var(--danger); border-color:transparent;">Logout</button>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script src="/js/utils.js"></script>
+<script src="/js/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!Auth.isLoggedIn() || !Auth.isAdmin()) { 
+      document.getElementById('auth-required').style.display = 'block'; 
+      return; 
+    }
+    // 🚀 FIX: Used class instead of inline style
+    document.getElementById('admin-layout').classList.add('ready'); 
+  });
+
+  // Mobile Sidebar Toggles
+  function openSidebar() {
+    document.querySelector('.admin-sidebar').classList.add('open');
+    document.querySelector('.sidebar-overlay').classList.add('active');
+  }
+  
+  function closeSidebar() {
+    document.querySelector('.admin-sidebar').classList.remove('open');
+    document.querySelector('.sidebar-overlay').classList.remove('active');
+  }
+
+  // Active state logic
+  const currentPath = window.location.pathname;
+  if (currentPath === '/admin') document.getElementById('nav-dashboard').classList.add('active');
+  if (currentPath.includes('/admin/users')) document.getElementById('nav-users').classList.add('active');
+  if (currentPath.includes('/admin/products')) document.getElementById('nav-products').classList.add('active');
+  if (currentPath.includes('/admin/orders')) document.getElementById('nav-orders').classList.add('active');
+  if (currentPath.includes('/admin/payments')) document.getElementById('nav-payments').classList.add('active');
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
