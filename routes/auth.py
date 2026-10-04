@@ -50,12 +50,14 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 # DYNAMIC URL GENERATION (Based on single BASE_URL)
-# rstrip('/') is used to prevent double slashes like https://aikors.com//dashboard
+# rstrip('/') is used to prevent double slashes
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
 
 FRONTEND_URL = f"{BASE_URL}/reset-password"
 FRONTEND_LOGIN_SUCCESS = f"{BASE_URL}/dashboard"
-GOOGLE_REDIRECT_URI = f"{BASE_URL}/auth/google/callback"
+
+# 🚀 FIX: Added /api/ before /auth/google/callback so it perfectly matches your backend routing!
+GOOGLE_REDIRECT_URI = f"{BASE_URL}/api/auth/google/callback"
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generate_slug_from_email(email: str) -> str:
@@ -172,7 +174,6 @@ def google_callback(code: str, db: Session = Depends(get_db)):
                 db.refresh(user)
 
         if not user.is_active:
-            # If user is blocked, redirect to login with error
             return RedirectResponse(f"{BASE_URL}/login?error=account_disabled")
 
         # Create our platform Token
