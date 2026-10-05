@@ -51,6 +51,38 @@ const Auth = {
   }
 };
 
+// ─── 🚀 GOOGLE AUTH AUTO-HEALING LOGIC ───────────────────────────────────────
+// Yeh automatically URL se token uthayega, user ki detail fetch karega aur save karega
+(async function handleGoogleRedirect() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  
+  if (urlToken) {
+    // URL se token hide kar do
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // Save token using correct key
+    localStorage.setItem('cv_token', urlToken);
+    
+    try {
+      // Fetch user data from backend because Google redirect only gives token
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${urlToken}` }
+      });
+      if (res.ok) {
+        const user = await res.json();
+        localStorage.setItem('cv_user', JSON.stringify(user));
+      }
+    } catch (err) {
+      console.error("Failed to fetch user data for Google Auth", err);
+    }
+    
+    // Reload page to apply changes properly
+    window.location.reload();
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── API client (behavior unchanged) ─────────────────────────────────────────
 const API = {
   async request(path, options = {}) {
@@ -101,8 +133,6 @@ const API = {
 };
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
-// Layout: icon + text on one row. Enters from the right (bottom on small
-// screens) and leaves in the same direction. All styling lives in main.css.
 const Toast = {
   container: null,
   init() {
@@ -148,8 +178,6 @@ const Toast = {
 };
 
 // ─── Motion helpers ──────────────────────────────────────────────────────────
-// Lightweight scroll reveal (IntersectionObserver, transform/opacity only).
-// Pages can add class="reveal" and optional data-reveal-delay="80".
 const Motion = {
   reduced: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   reveal(selector = '.reveal') {
@@ -219,8 +247,8 @@ function setupNavbar() {
     `;
   } else {
     navActions.innerHTML = `
-      <button onclick="openLoginModal()" class="btn-ghost btn-sm">Log in</button>
-      <button onclick="openSignupModal()" class="btn-primary btn-sm">Sign up</button>
+      <button onclick="window.location.href='/login'" class="btn-ghost btn-sm">Log in</button>
+      <button onclick="window.location.href='/signup'" class="btn-primary btn-sm">Sign up</button>
     `;
   }
 }
