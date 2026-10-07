@@ -68,3 +68,39 @@ def generate_presigned_url(object_key: str, expiration: int = 3600):
     except ClientError as e:
         print(f"Presigned URL Error: {e}")
         raise HTTPException(status_code=500, detail="Could not generate download link.")
+
+# Yeh function file ke end mein add karein
+def generate_presigned_upload_url(folder: str, original_filename: str, content_type: str):
+    """Vercel 4.5MB Limit Bypass: Frontend se direct upload ke liye secure URL"""
+    try:
+        client = get_r2_client()
+        bucket_name = os.getenv('R2_BUCKET_NAME')
+        public_domain = os.getenv('R2_PUBLIC_CUSTOM_DOMAIN')
+        
+        ext = original_filename.split(".")[-1]
+        unique_filename = f"{uuid.uuid4().hex}.{ext}"
+        object_key = f"{folder}/{unique_filename}"
+        
+        # Generate PUT URL
+        url = client.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': bucket_name,
+                'Key': object_key,
+                'ContentType': content_type
+            },
+            ExpiresIn=3600
+        )
+        
+        file_url = object_key
+        if folder == "thumbnails" and public_domain:
+            file_url = f"{public_domain}/{object_key}"
+            
+        return {
+            "upload_url": url,
+            "file_url": file_url,
+            "file_name": original_filename
+        }
+    except Exception as e:
+        print(f"Generate Upload URL Error: {e}")
+        raise HTTPException(status_code=500, detail="Could not generate direct upload link")        
