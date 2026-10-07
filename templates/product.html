@@ -96,8 +96,8 @@
   /* ─── Centered Download Loader (Full Screen Overlay) ─── */
   .download-overlay {
     position: fixed; inset: 0; z-index: 9999;
-    background: rgba(0, 0, 0, 0.6);
-    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.85);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
     display: none; align-items: center; justify-content: center; flex-direction: column;
     color: #fff; opacity: 0; transition: opacity 0.3s ease;
   }
@@ -118,19 +118,34 @@
 {% endblock %}
 
 {% block content %}
-<!-- Back to store link added cleanly to the top -->
-<div style="max-width: 1200px; margin: 0 auto; padding: calc(var(--nav-h) + 20px) 24px 0;">
+<!-- Back to store link & QUICK BUTTON ADDED HERE -->
+<div style="max-width: 1200px; margin: 0 auto; padding: calc(var(--nav-h) + 20px) 24px 0; display: flex; justify-content: space-between; align-items: center;">
   <a href="/" style="display:inline-flex; align-items:center; gap:6px; color:var(--text-secondary); font-weight:600; font-size:0.95rem;">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"></path><polyline points="12 19 5 12 12 5"></polyline></svg>
     Back to Store
   </a>
+  
+  <button id="quick-action-btn" class="btn-primary" style="display: none; align-items: center; gap: 8px; height: 40px; padding: 0 20px; font-size: 0.95rem; border-radius: 100px; box-shadow: var(--shadow-sm); z-index: 10;">
+  </button>
 </div>
 
-<!-- Central Download Loader -->
+<!-- 🚀 UPGRADED: Central Download Loader with Progress UI -->
 <div class="download-overlay" id="download-loader">
   <svg class="download-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
-  <h2 style="font-size:1.5rem; font-weight:700;">Preparing your file...</h2>
-  <p style="color:rgba(255,255,255,0.7); margin-top:8px;">Fetching secure download link</p>
+  
+  <h2 id="download-title" style="font-size:1.5rem; font-weight:700;">Preparing your file...</h2>
+  <p id="download-subtitle" style="color:rgba(255,255,255,0.7); margin-top:8px;">Fetching secure download link</p>
+
+  <!-- Progress Bar Container -->
+  <div id="download-progress-container" style="display:none; width: 80%; max-width: 360px; margin-top: 24px;">
+    <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 10px; overflow: hidden; width: 100%;">
+        <div id="download-progress-bar" style="width: 0%; background: var(--accent); height: 100%; transition: width 0.2s linear;"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.9); font-weight:600;">
+        <span id="download-progress-text">0%</span>
+        <span id="download-speed-text">Calculating...</span>
+    </div>
+  </div>
 </div>
 
 <div class="product-page-wrapper" style="padding-top: 24px;">
@@ -227,7 +242,6 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Razorpay Official Checkout Script -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <script>
@@ -235,6 +249,26 @@
   let isPurchased = false;
 
   document.addEventListener('DOMContentLoaded', loadProduct);
+
+  function updateQuickBtn(isOwned) {
+    const quickBtn = document.getElementById('quick-action-btn');
+    if (!currentProduct) return;
+    
+    quickBtn.style.display = 'inline-flex';
+    
+    if (isOwned) {
+      quickBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Download`;
+      quickBtn.onclick = triggerDownload;
+      quickBtn.style.background = 'var(--success)';
+      quickBtn.style.color = '#fff';
+      quickBtn.style.border = 'none';
+    } else {
+      quickBtn.innerHTML = `Pay ${typeof formatPrice !== 'undefined' ? formatPrice(currentProduct.price) : '₹' + currentProduct.price}`;
+      quickBtn.onclick = initiatePurchase;
+      quickBtn.style.background = ''; 
+      quickBtn.style.color = '';
+    }
+  }
 
   async function loadProduct() {
     const slug = new URLSearchParams(window.location.search).get('slug');
@@ -244,8 +278,14 @@
       const product = await API.get('/products/' + slug);
       currentProduct = product;
       document.title = product.title + ' — AIkors';
+      
       renderProduct(product);
-      if (Auth.isLoggedIn()) await checkPurchaseStatus(product.id);
+      
+      if (Auth.isLoggedIn()) {
+        await checkPurchaseStatus(product.id);
+      } else {
+        updateQuickBtn(false);
+      }
     } catch (err) {
       showNotFound();
     }
@@ -280,7 +320,8 @@
       origEl.style.display = 'block';
     }
 
-    // GSAP Entry Animations
+    updateQuickBtn(false);
+
     const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     gsap.to("#gsap-left", { opacity: 1, y: 0, duration: rm ? 0 : 0.6, ease: "power2.out" });
     gsap.to("#gsap-right", { opacity: 1, y: 0, duration: rm ? 0 : 0.6, ease: "power2.out", delay: rm ? 0 : 0.2 });
@@ -294,6 +335,7 @@
         isPurchased = true;
         document.getElementById('purchased-state').style.display = 'block';
         document.getElementById('buy-state').style.display = 'none';
+        updateQuickBtn(true);
       }
     } catch (err) {}
   }
@@ -306,7 +348,10 @@
     }
 
     const btn = document.getElementById('buy-btn');
+    const quickBtn = document.getElementById('quick-action-btn');
+    
     setLoading(btn, true, 'Preparing checkout...');
+    setLoading(quickBtn, true, 'Processing...');
 
     try {
       const orderData = await API.post('/payments/create-order', { product_ids: [currentProduct.id] });
@@ -321,12 +366,16 @@
         order_id: orderData.razorpay_order_id,
         prefill: { name: user.name, email: user.email },
         hidden: { contact: true, email: true },
-        theme: { color: '#000000' }, // Apple/Stripe Black Style
+        theme: { color: '#000000' }, 
         handler: async (response) => {
           await verifyPayment(response, orderData.order_id);
         },
         modal: {
-          ondismiss: () => { setLoading(btn, false); Toast.info('Payment cancelled'); }
+          ondismiss: () => { 
+            setLoading(btn, false); 
+            setLoading(quickBtn, false); 
+            Toast.info('Payment cancelled'); 
+          }
         }
       };
 
@@ -336,12 +385,16 @@
     } catch (err) {
       Toast.error(err.message);
       setLoading(btn, false);
+      setLoading(quickBtn, false);
     }
   }
 
   async function verifyPayment(razorpayResponse, orderId) {
     const btn = document.getElementById('buy-btn');
+    const quickBtn = document.getElementById('quick-action-btn');
+    
     setLoading(btn, true, 'Verifying payment...');
+    setLoading(quickBtn, true, 'Verifying...');
 
     try {
       const result = await API.post('/payments/verify', {
@@ -357,47 +410,124 @@
         document.getElementById('purchased-state').style.display = 'block';
         document.getElementById('buy-state').style.display = 'none';
         
-        // Trigger download overlay immediately for premium UX
+        updateQuickBtn(true);
         triggerDownload();
       }
     } catch (err) {
       Toast.error('Payment verification failed. Contact support.');
     } finally {
       setLoading(btn, false);
+      if(!isPurchased) updateQuickBtn(false);
     }
   }
 
-  // Centered Download Loader Logic
-  function triggerDownload() {
+  // 🚀 UPGRADED: Stream-based Download with Progress
+  async function triggerDownload() {
     if (!Auth.isLoggedIn()) { window.location.href = '/login'; return; }
     
     const loader = document.getElementById('download-loader');
-    loader.classList.add('active'); // Show Fullscreen loader
+    const titleEl = document.getElementById('download-title');
+    const subtitleEl = document.getElementById('download-subtitle');
+    const progressContainer = document.getElementById('download-progress-container');
+    const progressBar = document.getElementById('download-progress-bar');
+    const progressText = document.getElementById('download-progress-text');
+    const speedText = document.getElementById('download-speed-text');
+    const spinner = loader.querySelector('.download-spinner');
+
+    // Show Loader UI
+    loader.classList.add('active');
+    titleEl.innerText = "Connecting securely...";
+    subtitleEl.innerText = "Please wait";
+    progressContainer.style.display = "none";
+    progressBar.style.width = "0%";
+    progressText.innerText = "0%";
+    speedText.innerText = "Calculating...";
+    spinner.style.display = "block";
     
-    fetch('/api/orders/download/' + currentProduct.id, { 
-        headers: { 'Authorization': 'Bearer ' + Auth.getToken() } 
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Download failed. Ensure you own this product.');
-        return res.blob();
-      })
-      .then(blob => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = currentProduct.file_name || currentProduct.title;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        
-        setTimeout(() => {
-          loader.classList.remove('active'); // Hide loader
-          Toast.success('Download started securely!');
-        }, 800); // Artificial slight delay to show completion smoothly
-      })
-      .catch((err) => {
-        loader.classList.remove('active');
-        Toast.error(err.message || 'Download failed');
+    try {
+      const response = await fetch('/api/orders/download/' + currentProduct.id, { 
+          headers: { 'Authorization': 'Bearer ' + Auth.getToken() } 
       });
+
+      if (!response.ok) throw new Error('Download failed. Please check your connection.');
+
+      titleEl.innerText = "Downloading...";
+      subtitleEl.innerText = currentProduct.file_name || currentProduct.title;
+      progressContainer.style.display = "block";
+
+      const contentLength = response.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      
+      let received = 0;
+      const chunks = [];
+      const reader = response.body.getReader();
+      
+      let lastTime = Date.now();
+      let lastReceived = 0;
+
+      while(true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        
+        chunks.push(value);
+        received += value.length;
+
+        const now = Date.now();
+        const timeDiff = (now - lastTime) / 1000; 
+
+        // Update progress every 250ms
+        if (timeDiff >= 0.25) {
+          if (total) {
+            const percent = Math.min(Math.round((received / total) * 100), 100);
+            progressBar.style.width = percent + "%";
+            progressText.innerText = percent + "%";
+          } else {
+            // Fallback animation if size is unknown
+            progressBar.style.width = "100%";
+            progressBar.style.animation = "faang-shimmer 2s infinite";
+            progressText.innerText = (received / 1048576).toFixed(2) + " MB";
+          }
+
+          const bytesDiff = received - lastReceived;
+          const speed = bytesDiff / timeDiff; 
+
+          if (speed > 1048576) {
+            speedText.innerText = (speed / 1048576).toFixed(2) + " MB/s";
+          } else {
+            speedText.innerText = (speed / 1024).toFixed(2) + " KB/s";
+          }
+
+          lastTime = now;
+          lastReceived = received;
+        }
+      }
+
+      // Download Complete
+      titleEl.innerText = "Download Complete!";
+      subtitleEl.innerText = "Saving file to your device...";
+      spinner.style.display = "none";
+      progressBar.style.width = "100%";
+      progressText.innerText = "100%";
+      speedText.innerText = "Done";
+
+      // Save the file
+      const blob = new Blob(chunks);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = currentProduct.file_name || currentProduct.title;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      
+      setTimeout(() => {
+        loader.classList.remove('active'); 
+        Toast.success('File saved successfully!');
+      }, 1500); 
+
+    } catch (err) {
+      loader.classList.remove('active');
+      Toast.error(err.message || 'Download stopped unexpectedly.');
+    }
   }
 
   function showNotFound() {

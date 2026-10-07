@@ -7,6 +7,16 @@
   .modal-overlay.open { display: flex; }
   .modal-box { width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; background: var(--bg-surface); border-radius: var(--radius-xl); padding: 32px; position: relative; box-shadow: var(--shadow-modal);}
   .modal-close { position:absolute; top:20px; right:20px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-secondary);}
+
+  /* Premium Skeleton Loader (Prefetch Animation) */
+  .skeleton-row td { padding: 16px; border-bottom: 1px solid var(--border); }
+  .skel-bar { 
+    height: 16px; background: var(--bg-surface-hover); 
+    border-radius: 4px; animation: faang-shimmer 2s infinite linear; 
+    background-image: linear-gradient(90deg, var(--bg-surface-hover) 0px, var(--border) 50%, var(--bg-surface-hover) 100%); 
+    background-size: 200% 100%; 
+  }
+  @keyframes faang-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 </style>
 {% endblock %}
 
@@ -25,7 +35,7 @@
       <tr><th>Product</th><th>Pricing</th><th>Sales Count</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody id="table-body">
-      <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+      <!-- Skeletons will be injected here dynamically by JS -->
     </tbody>
   </table>
 </div>
@@ -44,7 +54,6 @@
         <input id="p-title" class="form-input" required>
       </div>
       
-      <!-- 🚀 NEW: Short Description, Description, Tags -->
       <div class="form-group">
         <label class="form-label">Short Description</label>
         <input id="p-short-desc" class="form-input" placeholder="A brief one-line summary">
@@ -75,21 +84,31 @@
         <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="p-featured"> Featured</label>
       </div>
       
-      <div id="upload-section" style="display:none; background:var(--bg-surface-hover); padding:16px; border-radius:var(--radius-md); margin-bottom:24px; border: 1px dashed var(--border-strong);">
-        <div style="margin-bottom:16px;">
-          <label class="form-label">Upload Thumbnail (Image)</label>
-          <div style="display:flex; gap:8px;">
-            <input type="file" id="thumb-file" accept="image/*" class="form-input" style="padding:8px;">
-            <button type="button" onclick="uploadMedia('thumbnail')" class="btn-ghost">Upload</button>
+      <!-- Upload Section with Previews -->
+      <div id="upload-section" style="display:none; background:var(--bg-surface-hover); padding:20px; border-radius:var(--radius-md); margin-bottom:24px; border: 1px dashed var(--border-strong);">
+        
+        <!-- Thumbnail Upload & Preview -->
+        <div style="margin-bottom:24px;">
+          <label class="form-label" style="font-weight:600;">Upload Thumbnail (Image)</label>
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <input type="file" id="thumb-file" accept="image/*" class="form-input" style="padding:8px;" onchange="handleMediaPreview(this, 'thumb')">
+            <button type="button" onclick="uploadMedia('thumbnail')" class="btn-ghost" style="border: 1px solid var(--accent); color: var(--accent);">Upload</button>
           </div>
+          <div id="thumb-preview-box" style="display:none; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-base); max-width: max-content;"></div>
         </div>
+
+        <div style="height:1px; background:var(--border-strong); margin:20px 0;"></div>
+
+        <!-- File Upload & Preview -->
         <div>
-          <label class="form-label">Upload Product File (PDF/ZIP)</label>
-          <div style="display:flex; gap:8px;">
-            <input type="file" id="product-file" class="form-input" style="padding:8px;">
-            <button type="button" onclick="uploadMedia('file')" class="btn-ghost">Upload</button>
+          <label class="form-label" style="font-weight:600;">Upload Product File (PDF/ZIP)</label>
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <input type="file" id="product-file" accept=".pdf,.zip,.rar" class="form-input" style="padding:8px;" onchange="handleMediaPreview(this, 'file')">
+            <button type="button" onclick="uploadMedia('file')" class="btn-ghost" style="border: 1px solid var(--accent); color: var(--accent);">Upload</button>
           </div>
+          <div id="file-preview-box" style="display:none; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-base); max-width: 100%;"></div>
         </div>
+
       </div>
       
       <div style="display:flex; justify-content:flex-end; gap:12px;">
@@ -108,6 +127,18 @@
   let allLoadedProducts = []; 
 
   async function loadData() {
+    // Inject Skeleton Loader while fetching data
+    const skelHtml = Array(5).fill(`
+      <tr class="skeleton-row">
+        <td><div class="skel-bar" style="width:70%; margin-bottom:6px;"></div><div class="skel-bar" style="width:40%; height:12px;"></div></td>
+        <td><div class="skel-bar" style="width:50%; margin-bottom:6px;"></div><div class="skel-bar" style="width:30%; height:12px;"></div></td>
+        <td><div class="skel-bar" style="width:60%;"></div></td>
+        <td><div class="skel-bar" style="width:40px; height:24px; border-radius:12px;"></div></td>
+        <td><div class="skel-bar" style="width:60px; height:32px; border-radius:6px;"></div></td>
+      </tr>
+    `).join('');
+    document.getElementById('table-body').innerHTML = skelHtml;
+
     const skip = (state.page - 1) * state.limit;
     let url = `/admin/products?skip=${skip}&limit=${state.limit}`;
     if (state.search) url += `&search=${encodeURIComponent(state.search)}`;
@@ -170,16 +201,46 @@
     `;
   }
 
-  function changePage(delta) { state.page += delta; loadData(); }
+  // Handle Live File Previews Before Upload 
+  function handleMediaPreview(input, type) {
+    const file = input.files[0];
+    const box = document.getElementById(`${type}-preview-box`);
+    
+    if(!file) return; 
+    
+    box.style.display = 'block';
+    const objectUrl = URL.createObjectURL(file);
+    
+    if(type === 'thumb') {
+      box.innerHTML = `
+        <div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Live Preview:</div>
+        <img src="${objectUrl}" style="max-width:200px; max-height:140px; border-radius:8px; object-fit:cover; display:block; border:1px solid var(--border);">
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; word-break:break-all; font-family:monospace;">Local File: ${file.name}</div>
+      `;
+    } else {
+      box.innerHTML = `
+        <div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Live Preview:</div>
+        <a href="${objectUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:8px; color:var(--accent); font-weight:600; text-decoration:none; padding:8px 12px; background:var(--bg-surface-hover); border-radius:6px; border:1px solid var(--border);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          Open & Confirm PDF/File
+        </a>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; word-break:break-all; font-family:monospace;">Local File: ${file.name}</div>
+      `;
+    }
+  }
 
-  // 🚀 FIX: Injecting New Data into Form
   function openProductForm(id) {
     document.getElementById('product-form').reset();
     document.getElementById('edit-id').value = '';
+    
     document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('thumb-preview-box').style.display = 'none';
+    document.getElementById('file-preview-box').style.display = 'none';
+    document.getElementById('thumb-preview-box').innerHTML = '';
+    document.getElementById('file-preview-box').innerHTML = '';
+    
     document.getElementById('modal-title').textContent = 'Add Product';
     
-    // Clear new fields manually just in case
     document.getElementById('p-short-desc').value = '';
     document.getElementById('p-desc').value = '';
     document.getElementById('p-tags').value = '';
@@ -200,6 +261,42 @@
         document.getElementById('p-active').checked = p.is_active;
         document.getElementById('p-featured').checked = p.is_featured;
         document.getElementById('upload-section').style.display = 'block';
+
+        // 🚀 NAYA: Existing Image is now Clickable (Opens in new tab)
+        if(p.thumbnail_url) {
+          const tBox = document.getElementById('thumb-preview-box');
+          tBox.style.display = 'block';
+          tBox.innerHTML = `
+            <div style="font-size:0.8rem; font-weight:600; color:var(--success); margin-bottom:8px;">Currently Uploaded:</div>
+            <a href="${p.thumbnail_url}" target="_blank" title="Click to view full image" style="display:inline-block; border: 2px solid transparent; transition:0.2s; border-radius:8px;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='transparent'">
+              <img src="${p.thumbnail_url}" style="max-width:200px; max-height:140px; border-radius:6px; object-fit:cover; display:block; border:1px solid var(--border);">
+            </a>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">Click image to open in full size</div>
+          `;
+        }
+        
+        // 🚀 NAYA: View / Open File Button Added for existing PDFs
+        if(p.file_name) {
+          const fBox = document.getElementById('file-preview-box');
+          fBox.style.display = 'block';
+          fBox.innerHTML = `
+            <div style="font-size:0.8rem; font-weight:600; color:var(--success); margin-bottom:8px;">Currently Uploaded:</div>
+            
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div style="display:inline-flex; align-items:center; gap:8px; color:var(--text-primary); font-weight:500; padding:8px 12px; background:var(--bg-surface-hover); border-radius:6px; border:1px solid var(--border);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
+                ${p.file_name}
+              </div>
+              
+              <button type="button" class="btn-primary" onclick="adminPreviewFile(${p.id})" style="height: 38px; padding: 0 16px; font-size: 0.85rem; border-radius: 6px; display:inline-flex; align-items:center; gap:6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                  Open File in New Tab
+              </button>
+            </div>
+
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">Select a new file above to replace this.</div>
+          `;
+        }
       }
     }
     document.getElementById('product-modal').classList.add('open');
@@ -215,7 +312,6 @@
     
     const id = document.getElementById('edit-id').value;
     
-    // 🚀 FIX: Construct payload with description fields
     const payload = {
       title: document.getElementById('p-title').value,
       short_description: document.getElementById('p-short-desc').value,
@@ -258,7 +354,34 @@
     try {
       await API.upload(`/products/${id}/upload-${type}`, formData);
       Toast.success(`${type} uploaded successfully!`);
+      // Reload to show new preview
+      setTimeout(() => openProductForm(id), 500);
     } catch(err) { Toast.error(err.message); }
+  }
+
+  // 🚀 NAYA: Secure Admin File Viewer 
+  function adminPreviewFile(productId) {
+    const token = Auth.getToken();
+    fetch('/api/orders/download/' + productId, { 
+        headers: { 'Authorization': 'Bearer ' + token } 
+    })
+    .then(res => {
+        if (res.redirected) {
+            // Cloudflare R2 URL automatically opens in new tab
+            window.open(res.url, '_blank');
+            return;
+        }
+        if (!res.ok) throw new Error('You do not have permission. Check backend code.');
+        return res.blob();
+    })
+    .then(blob => {
+        if(blob) {
+            // Local file opens in new tab
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        }
+    })
+    .catch(err => Toast.error(err.message));
   }
 
   setTimeout(loadData, 100);

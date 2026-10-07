@@ -18,21 +18,29 @@
   [data-theme="dark"] { --hero-glow: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.1), transparent 70%); }
   
   html { scroll-behavior: smooth; }
-  /* FIX: Removed custom font-family so it defaults to your original base font */
   body { overflow-x: hidden; background: var(--bg-base); color: var(--text-primary); }
 
   /* ─── 2. TABLET OVERRIDES (768px to 1023px) ─── */
   @media (min-width: 768px) {
-    :root {
-      --spacing-section: 100px 40px;
-    }
+    :root { --spacing-section: 100px 40px; }
   }
 
   /* ─── 3. DESKTOP OVERRIDES (1024px and above) ─── */
   @media (min-width: 1024px) {
-    :root {
-      --spacing-section: 140px 60px;
-    }
+    :root { --spacing-section: 140px 60px; }
+  }
+
+  /* ─── PREMIUM SKELETON LOADER ANIMATION ─── */
+  @keyframes premiumShimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  .skeleton-box {
+    background: var(--bg-surface-hover);
+    background-image: linear-gradient(90deg, var(--bg-surface-hover) 0px, var(--border) 50%, var(--bg-surface-hover) 100%);
+    background-size: 1000px 100%;
+    animation: premiumShimmer 2s infinite linear forwards;
+    border-radius: 4px;
   }
 
   /* ─── 4. COMMON COMPONENTS (Mobile First) ─── */
@@ -116,7 +124,6 @@
 
   /* ─── 5. TABLET & DESKTOP ENHANCEMENTS ─── */
   @media (min-width: 768px) {
-    /* FIX: Removed the desktop spacing bug completely */
     .mobile-quick-vault { display: none !important; margin: 0; padding: 0; } 
     .filter-chips { justify-content: center; flex-wrap: wrap; }
     .products-grid { grid-template-columns: repeat(2, 1fr); }
@@ -129,18 +136,12 @@
   @media (min-width: 1024px) {
     .products-grid { grid-template-columns: repeat(3, 1fr); }
     .bento-grid { grid-template-columns: repeat(3, 1fr); }
-
-    /* Hero -> Catalog rhythm (desktop only).
-       The hero's 85vh min-height plus 140px bottom padding and the catalog's 140px top padding
-       stacked into a ~400px void. Hero now hugs its content; catalog padding is a single
-       variable reused for the #catalog scroll offset so anchor jumps land on the search bar. */
     .hero { min-height: 0; padding-bottom: var(--space-8); }
     .catalog-section {
       --catalog-pad-top: var(--space-12);
       padding-top: var(--catalog-pad-top);
       scroll-margin-top: calc(var(--catalog-pad-top) * -1);
     }
-
     @media (hover: hover) {
       .chip:hover { background: var(--bg-surface-hover); color: var(--text-primary); transform: translateY(-2px); }
       .pro-card { cursor: pointer; }
@@ -172,7 +173,21 @@
   <div class="mobile-quick-vault gsap-hero">
     <div class="mobile-vault-title">Quick Vault<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-left:4px;"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
     <div class="swipe-scroll" id="mobile-swipe-grid">
-      <!-- JS Injects Swipeable Cards Here -->
+      <!-- 🚀 PREMIUM MOBILE SKELETONS -->
+      <div class="quick-card" style="pointer-events: none;">
+        <div class="skeleton-box" style="height: 140px; width: 100%; border-radius: 0;"></div>
+        <div class="quick-card-body">
+          <div class="skeleton-box" style="height: 16px; width: 80%; margin-bottom: 12px;"></div>
+          <div class="skeleton-box" style="height: 38px; width: 100%; border-radius: 8px;"></div>
+        </div>
+      </div>
+      <div class="quick-card" style="pointer-events: none;">
+        <div class="skeleton-box" style="height: 140px; width: 100%; border-radius: 0;"></div>
+        <div class="quick-card-body">
+          <div class="skeleton-box" style="height: 16px; width: 60%; margin-bottom: 12px;"></div>
+          <div class="skeleton-box" style="height: 38px; width: 100%; border-radius: 8px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -186,7 +201,6 @@
     </div>
   </div>
 
-  <!-- FIX: Emojis replaced with Premium SVG Icons -->
   <div class="filter-chips gsap-scroll" id="category-pills">
     <button class="chip active" onclick="filterCategory(null, this)">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
@@ -215,7 +229,43 @@
   </div>
 
   <div class="products-grid" id="products-grid">
-    <script>document.write(Array(6).fill(typeof productSkeleton !== 'undefined' ? productSkeleton() : '').join(''));</script>
+    <!-- 🚀 PREMIUM DESKTOP/GRID SKELETONS -->
+    <div class="pro-card" style="pointer-events: none;">
+      <div class="pro-card-image-wrap skeleton-box" style="border-radius: 0;"></div>
+      <div class="pro-card-body">
+        <div class="skeleton-box" style="height: 20px; width: 70%; margin-bottom: 12px;"></div>
+        <div class="skeleton-box" style="height: 14px; width: 100%; margin-bottom: 6px;"></div>
+        <div class="skeleton-box" style="height: 14px; width: 85%; margin-bottom: 24px;"></div>
+        <div class="pro-footer">
+          <div class="skeleton-box" style="height: 24px; width: 60px;"></div>
+          <div class="skeleton-box" style="height: 40px; width: 90px; border-radius: 100px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="pro-card" style="pointer-events: none;">
+      <div class="pro-card-image-wrap skeleton-box" style="border-radius: 0;"></div>
+      <div class="pro-card-body">
+        <div class="skeleton-box" style="height: 20px; width: 60%; margin-bottom: 12px;"></div>
+        <div class="skeleton-box" style="height: 14px; width: 100%; margin-bottom: 6px;"></div>
+        <div class="skeleton-box" style="height: 14px; width: 75%; margin-bottom: 24px;"></div>
+        <div class="pro-footer">
+          <div class="skeleton-box" style="height: 24px; width: 60px;"></div>
+          <div class="skeleton-box" style="height: 40px; width: 90px; border-radius: 100px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="pro-card" style="pointer-events: none;">
+      <div class="pro-card-image-wrap skeleton-box" style="border-radius: 0;"></div>
+      <div class="pro-card-body">
+        <div class="skeleton-box" style="height: 20px; width: 80%; margin-bottom: 12px;"></div>
+        <div class="skeleton-box" style="height: 14px; width: 100%; margin-bottom: 6px;"></div>
+        <div class="skeleton-box" style="height: 14px; width: 90%; margin-bottom: 24px;"></div>
+        <div class="pro-footer">
+          <div class="skeleton-box" style="height: 24px; width: 60px;"></div>
+          <div class="skeleton-box" style="height: 40px; width: 90px; border-radius: 100px;"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="no-products" style="display:none; text-align:center; padding: 60px 20px; background:var(--bg-surface-hover); border-radius:24px; border:1px dashed var(--border-strong); max-width:800px; margin: 0 auto;">
@@ -258,7 +308,6 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
       </div>
       <div>
-        <!-- FIX: Updated How to access logic -->
         <h3 class="timeline-title">3. Instant Unlock & Access</h3>
         <p class="timeline-desc">The moment your payment is successful, your study material will be unlocked instantly. You will get full access to download the PDF/ZIP files directly from your dashboard for lifetime offline study.</p>
       </div>
@@ -319,10 +368,26 @@
     });
   }
 
+  // 🚀 MICRO UPDATE 1: Preload Images Helper
+  function preloadImages(products) {
+    if (!products) return;
+    // Top 15 images ko background me load karega
+    products.slice(0, 15).forEach(p => {
+      if (p.thumbnail_url) {
+        const img = new Image();
+        img.src = p.thumbnail_url;
+      }
+    });
+  }
+
   async function loadProducts() {
     try {
       const response = await API.get('/products?limit=50');
       allCachedProducts = Array.isArray(response) ? response : (response?.items || []);
+      
+      // 🚀 BACKGROUND MEIN IMAGES PRELOAD KAREIN
+      preloadImages(allCachedProducts);
+
       renderGridProducts(allCachedProducts);
       renderMobileQuickVault(allCachedProducts.slice(0, 5));
     } catch (err) {
@@ -367,7 +432,6 @@
             <p class="pro-desc">${escapeHtml(p.short_description || p.description || 'Premium material.')}</p>
             <div class="pro-footer">
               <span class="pro-price">${typeof formatPrice !== 'undefined' ? formatPrice(p.price) : '₹'+p.price}</span>
-              <!-- FIX: Text changed to Unlock -->
               <button class="btn-buy" onclick="event.stopPropagation(); buyClick('${encodeURIComponent(p.slug)}')">Unlock</button>
             </div>
           </div>
@@ -379,24 +443,21 @@
     const swipeGrid = document.getElementById('mobile-swipe-grid');
     if(!products || products.length === 0) { swipeGrid.innerHTML = ''; return; }
     swipeGrid.innerHTML = products.map(p => {
-      const thumb = p.thumbnail_url ? `<img src="${p.thumbnail_url}" alt="${escapeHtml(p.title)}" class="quick-card-img" loading="lazy">` : `<div class="quick-card-img" style="background:var(--bg-surface-hover);"></div>`;
+      // 🚀 MICRO UPDATE 2: Removed loading="lazy" and added fetchpriority="high"
+      const thumb = p.thumbnail_url ? `<img src="${p.thumbnail_url}" alt="${escapeHtml(p.title)}" class="quick-card-img" fetchpriority="high">` : `<div class="quick-card-img" style="background:var(--bg-surface-hover);"></div>`;
       return `
         <div class="quick-card" onclick="buyClick('${encodeURIComponent(p.slug)}')">
           ${thumb}
           <div class="quick-card-body">
             <div class="quick-card-title">${escapeHtml(p.title)}</div>
-            <!-- FIX: Text changed to Unlock -->
             <button class="quick-card-btn" onclick="event.stopPropagation(); buyClick('${encodeURIComponent(p.slug)}')">Unlock for ${typeof formatPrice !== 'undefined' ? formatPrice(p.price) : '₹'+p.price}</button>
           </div>
         </div>`;
     }).join('');
   }
 
+ // 🚀 BUG FIX: Ab login nahi maangega! Seedha Product Detail Page par bhejega.
   function buyClick(slug) {
-    if (typeof Auth !== 'undefined' && !Auth.isLoggedIn()) { 
-      if(typeof openLoginModal === 'function') openLoginModal(); else window.location.href = '/login';
-      return; 
-    }
     window.location.href = '/product-page?slug=' + slug;
   }
 

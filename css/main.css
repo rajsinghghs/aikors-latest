@@ -196,6 +196,31 @@ img, svg { max-width: 100%; }
 .btn-sm { height: 36px; padding-inline: 14px; font-size: var(--text-small); }
 .btn-icon { width: 36px; padding: 0; }
 
+.nav-logout {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    flex-shrink: 0 !important;
+}
+
+.nav-logout svg {
+    width: 19px !important;
+    height: 19px !important;
+    min-width: 19px !important;
+    min-height: 19px !important;
+
+    display: block !important;
+    flex-shrink: 0 !important;
+}
 /* ---------- Buttons ---------- */
 .btn-primary, .btn-ghost, .btn-nav {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

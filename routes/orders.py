@@ -2,7 +2,7 @@
 routes/orders.py - Order history and secure file download
 """
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 from database import get_db
@@ -10,6 +10,12 @@ import models
 import schemas
 from auth.jwt_handler import get_current_user
 import os
+
+# NAYA IMPORT: Secure presigned URL generator
+try:
+    from utils.r2_storage import generate_presigned_url
+except ImportError:
+    generate_presigned_url = None
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -39,7 +45,7 @@ def download_product(
 ):
     """
     Secure download endpoint — verifies user has purchased the product
-    before serving the file.
+    before serving the file. Supports both Local and Cloudflare R2 files.
     """
     # Check user has paid for this product
     purchase = db.query(models.OrderItem).join(models.Order).filter(
@@ -48,7 +54,7 @@ def download_product(
         models.OrderItem.product_id == product_id
     ).first()
 
-    if not purchase:
+    if not purchase and current_user.role != models.UserRole.admin:
         raise HTTPException(
             status_code=403,
             detail="You have not purchased this product"
@@ -66,15 +72,28 @@ def download_product(
             detail="File not found for this product"
         )
 
-    # Verify file exists on disk
-    if not os.path.exists(product.file_url):
+    file_path_or_key = product.file_url
+
+    # 🚀 NAYA LOGIC: Check if it's an R2 file or Local file
+    # Agar path './uploads' ya 'uploads' se start nahi hota, matlab R2 par hai
+    if generate_presigned_url and not file_path_or_key.startswith(("./uploads", "uploads")):
+        try:
+            # 1 hour (3600 seconds) ke liye secure link generate karein
+            secure_url = generate_presigned_url(file_path_or_key, expiration=3600)
+            return RedirectResponse(url=secure_url)
+        except Exception as e:
+            print(f"Failed to generate R2 download link: {e}")
+            raise HTTPException(status_code=500, detail="Could not generate secure download link")
+
+    # 🚀 FALLBACK LOGIC: Purani Local files ke liye
+    if not os.path.exists(file_path_or_key):
         raise HTTPException(
             status_code=404,
             detail="File not found on server"
         )
 
     return FileResponse(
-        path=product.file_url,
+        path=file_path_or_key,
         filename=product.file_name or "download",
         media_type="application/octet-stream"
     )

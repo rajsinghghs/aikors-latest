@@ -15,6 +15,12 @@ import aiofiles
 import uuid
 from dotenv import load_dotenv
 
+# NAYA IMPORT: Cloudflare R2 function
+try:
+    from utils.r2_storage import upload_file_to_r2
+except ImportError:
+    upload_file_to_r2 = None
+
 load_dotenv()
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
@@ -48,7 +54,6 @@ def list_products(
     query = db.query(models.Product).filter(models.Product.is_active == True)
 
     if category:
-        # FAANG FIX: Category case-insensitive search
         query = query.filter(func.lower(models.Product.category) == category.lower())
     if featured is not None:
         query = query.filter(models.Product.is_featured == featured)
@@ -85,7 +90,6 @@ def create_product(
     admin: models.User = Depends(get_current_admin)
 ):
     """Admin: Create a new product."""
-    # Generate unique slug
     base_slug = make_slug(product_data.title)
     slug = base_slug
     counter = 1
@@ -130,7 +134,7 @@ def delete_product(
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin)
 ):
-    """Admin: Soft-delete a product (sets is_active=False)."""
+    """Admin: Soft-delete a product."""
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -138,6 +142,7 @@ def delete_product(
     db.commit()
 
 
+# 🚀 NAYA LOGIC YAHAN HAI: SMART FALLBACK FILE UPLOAD
 @router.post("/{product_id}/upload-file")
 async def upload_product_file(
     product_id: int,
@@ -150,22 +155,40 @@ async def upload_product_file(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Generate unique filename
+    content = await file.read()
+    product.file_name = file.filename
+
+    # Try Cloudflare R2 Upload first
+    if upload_file_to_r2 and os.getenv('R2_ACCESS_KEY_ID'):
+        try:
+            r2_path = upload_file_to_r2(
+                file_content=content,
+                original_filename=file.filename,
+                folder="files",
+                content_type=file.content_type
+            )
+            product.file_url = r2_path
+            db.commit()
+            return {"message": "File uploaded successfully to Cloudflare R2", "file_name": file.filename}
+        except Exception as e:
+            print(f"R2 Upload failed, falling back to local storage: {e}")
+            # Fallback to local storage niche continue hoga
+
+    # Fallback: Local Storage (Agar R2 fail ho ya set na ho)
     ext = os.path.splitext(file.filename)[1]
     unique_name = f"{uuid.uuid4().hex}{ext}"
     file_path = f"{UPLOAD_DIR}/files/{unique_name}"
 
     async with aiofiles.open(file_path, 'wb') as f:
-        content = await file.read()
         await f.write(content)
 
     product.file_url = file_path
-    product.file_name = file.filename
     db.commit()
 
-    return {"message": "File uploaded successfully", "file_name": file.filename}
+    return {"message": "File uploaded successfully to Local Storage", "file_name": file.filename}
 
 
+# 🚀 NAYA LOGIC YAHAN HAI: SMART FALLBACK THUMBNAIL UPLOAD
 @router.post("/{product_id}/upload-thumbnail")
 async def upload_thumbnail(
     product_id: int,
@@ -178,16 +201,32 @@ async def upload_thumbnail(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
+    content = await file.read()
+
+    # Try Cloudflare R2 Upload first
+    if upload_file_to_r2 and os.getenv('R2_ACCESS_KEY_ID'):
+        try:
+            thumbnail_url = upload_file_to_r2(
+                file_content=content,
+                original_filename=file.filename,
+                folder="thumbnails",
+                content_type=file.content_type
+            )
+            product.thumbnail_url = thumbnail_url
+            db.commit()
+            return {"thumbnail_url": product.thumbnail_url, "source": "R2"}
+        except Exception as e:
+            print(f"R2 Thumbnail Upload failed, falling back to local: {e}")
+
+    # Fallback: Local Storage (Agar R2 fail ho ya set na ho)
     ext = os.path.splitext(file.filename)[1]
     unique_name = f"{uuid.uuid4().hex}{ext}"
     file_path = f"{UPLOAD_DIR}/thumbnails/{unique_name}"
 
     async with aiofiles.open(file_path, 'wb') as f:
-        content = await file.read()
         await f.write(content)
 
-    # Store as public URL path
     product.thumbnail_url = f"/uploads/thumbnails/{unique_name}"
     db.commit()
 
-    return {"thumbnail_url": product.thumbnail_url}
+    return {"thumbnail_url": product.thumbnail_url, "source": "Local"}
