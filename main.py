@@ -40,8 +40,14 @@ app.mount("/js", StaticFiles(directory="js"), name="js")
 app.mount("/css", StaticFiles(directory="css"), name="css")
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
-os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
-os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
+try:
+    os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
+except OSError:
+    # Vercel Read-Only Filesystem Fix
+    UPLOAD_DIR = "/tmp/uploads"
+    os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
 
 # Only serve thumbnails publicly — NOT the files directory
 app.mount("/uploads/thumbnails", StaticFiles(directory=f"{UPLOAD_DIR}/thumbnails"), name="thumbnails")

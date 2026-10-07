@@ -24,8 +24,14 @@ except ImportError:
 load_dotenv()
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
-os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
-os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
+try:
+    os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
+except OSError:
+    # Vercel Read-Only Filesystem Fix
+    UPLOAD_DIR = "/tmp/uploads"
+    os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
