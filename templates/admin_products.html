@@ -17,7 +17,7 @@
   }
   @keyframes faang-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
-  /* 🚀 PROGRESS BAR STYLING */
+  /* PROGRESS BAR STYLING */
   .upload-progress-box {
     display: none; padding: 16px; margin-top: 16px; border-radius: 8px;
     background: var(--bg-surface); border: 1px solid var(--border);
@@ -114,7 +114,7 @@
           <div id="file-preview-box" style="display:none; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-base); max-width: 100%;"></div>
         </div>
 
-        <!-- 🚀 LIVE PROGRESS BAR UI -->
+        <!-- LIVE PROGRESS BAR UI -->
         <div id="upload-progress-ui" class="upload-progress-box">
           <div class="progress-header">
             <span id="up-status">Uploading...</span>
@@ -302,20 +302,24 @@
         await API.put(`/products/${id}`, payload);
         Toast.success('Product updated');
         closeProductForm();
+        loadData();
       } else {
         const res = await API.post('/products', payload);
         document.getElementById('edit-id').value = res.id;
         document.getElementById('upload-section').style.display = 'block';
         Toast.success('Product created. Now upload files!');
         btn.innerHTML = originalText; btn.disabled = false;
+        
+        // 🚀 FIX: Fetch data instantly so allLoadedProducts is updated 
+        // This prevents the empty form glitch!
+        await loadData(); 
         return; 
       }
-      loadData();
     } catch(err) { Toast.error(err.message); }
     finally { btn.innerHTML = originalText; btn.disabled = false; }
   }
 
-  // 🚀 XHR PROMISE WRAPPER FOR LIVE PROGRESS
+  // XHR PROMISE WRAPPER FOR LIVE PROGRESS
   function uploadWithProgress(url, file, contentType) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -384,7 +388,7 @@
     btn.innerHTML = 'Uploading...'; btn.disabled = true;
     
     try {
-      // Direct Cloudflare R2 Upload (Vercel bypass)
+      // Direct Cloudflare R2 Upload
       try {
         const urlRes = await API.post(`/products/${id}/get-upload-url`, {
           filename: file.name,
@@ -402,8 +406,13 @@
           type: type
         });
         
-        Toast.success(`${type} uploaded securely to Cloud!`);
-        setTimeout(() => { document.getElementById('upload-progress-ui').style.display = 'none'; openProductForm(id); }, 1500);
+        Toast.success(`${type} uploaded securely!`);
+        setTimeout(() => { 
+          document.getElementById('upload-progress-ui').style.display = 'none'; 
+          loadData(); 
+          // 🚀 FIX: Upload complete hone ke baad modal automatically close ho jayega
+          closeProductForm(); 
+        }, 1500);
         return; 
       } catch(cloudErr) {
         console.log("Direct Upload failed, trying local fallback", cloudErr);
@@ -414,7 +423,11 @@
       formData.append('file', file);
       await API.upload(`/products/${id}/upload-${type}`, formData);
       Toast.success(`${type} uploaded locally!`);
-      setTimeout(() => openProductForm(id), 500);
+      setTimeout(() => { 
+        loadData(); 
+        // 🚀 FIX: Upload complete hone ke baad modal automatically close ho jayega
+        closeProductForm(); 
+      }, 1500);
 
     } catch(err) { 
       Toast.error(err.message); 
