@@ -6,13 +6,13 @@ Base path is `/api`. Send `Authorization: Bearer <token>` for account, checkout,
 
 - `GET /products` — active products. Each item includes `avg_rating` and `review_count`.
 - `GET /products/{slug}` — detail, including `file_name` and `screenshots`. Does not include `file_url`.
-- `GET /products/{slug}/reviews` — `{ average, count, reviews }`.
+- `GET /products/{slug}/reviews` — `{ average, count, breakdown, purchased, my_review_id, reviews }`. `breakdown` is counts for stars `"1"` through `"5"`. `purchased` and `my_review_id` are set only when a valid token is sent.
 
 Review objects contain `id`, `user_id`, `user_name`, `rating`, `comment`, `verified_purchase`, `created_at`.
 
 ## Signed-in buyer
 
-- `POST /products/{slug}/reviews` with `{ "rating": 1-5, "comment": "..." }` creates or updates that user’s single review.
+- `POST /products/{slug}/reviews` with `{ "rating": 1-5, "comment": "" }` creates or updates that user’s single review. `comment` is optional.
 - `DELETE /products/{slug}/reviews/mine` removes it.
 - `POST /payments/create-order` with `{ "product_ids": [1] }` starts Razorpay checkout.
 - `POST /payments/verify` confirms the signature and marks the order paid.

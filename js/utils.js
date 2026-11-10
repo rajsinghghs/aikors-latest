@@ -260,13 +260,17 @@ function logout() {
 }
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
+function starGraphic(rating) {
+  const value = Math.max(0, Math.min(5, Number(rating) || 0));
+  const pct = (value / 5) * 100;
+  return `<span class="stars" aria-hidden="true"><span class="stars-base">★★★★★</span><span class="stars-fill" style="width:${pct.toFixed(1)}%">★★★★★</span></span>`;
+}
+
 function renderStars(rating, count) {
   const total = Number(count) || 0;
-  if (!total || rating == null) return '';
-  const rounded = Math.max(1, Math.min(5, Math.round(Number(rating))));
-  const stars = '★★★★★'.slice(0, rounded) + '☆☆☆☆☆'.slice(0, 5 - rounded);
+  if (!total || rating == null) return '<span class="star-line is-empty">No ratings yet</span>';
   const label = `${Number(rating).toFixed(1)} out of 5 from ${total} review${total === 1 ? '' : 's'}`;
-  return `<span class="star-line" role="img" aria-label="${label}"><b aria-hidden="true">${stars}</b> ${Number(rating).toFixed(1)} (${total})</span>`;
+  return `<span class="star-line" role="img" aria-label="${label}">${starGraphic(rating)} <span>${Number(rating).toFixed(1)} (${total})</span></span>`;
 }
 
 function formatPrice(amount) {

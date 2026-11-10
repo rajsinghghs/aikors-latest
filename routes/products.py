@@ -126,8 +126,12 @@ def _buyer_ids(product_id: int, db: Session) -> set:
 
 
 @router.get("/{slug}/reviews", response_model=schemas.ReviewListResponse)
-def list_reviews(slug: str, db: Session = Depends(get_db)):
-    """Public reviews for a product."""
+def list_reviews(
+    slug: str,
+    db: Session = Depends(get_db),
+    user: Optional[models.User] = Depends(get_optional_user),
+):
+    """Public reviews for a product, with a 1–5 star breakdown."""
     product = _active_product(slug, db)
     reviews = db.query(models.Review).options(
         selectinload(models.Review.user)
@@ -147,8 +151,21 @@ def list_reviews(slug: str, db: Session = Depends(get_db)):
         )
         for review in reviews
     ]
+    breakdown = {str(star): 0 for star in range(1, 6)}
+    for item in payload:
+        key = str(item.rating)
+        if key in breakdown:
+            breakdown[key] += 1
     average = round(sum(item.rating for item in payload) / len(payload), 1) if payload else None
-    return schemas.ReviewListResponse(average=average, count=len(payload), reviews=payload)
+    mine = next((item for item in payload if user and item.user_id == user.id), None)
+    return schemas.ReviewListResponse(
+        average=average,
+        count=len(payload),
+        breakdown=breakdown,
+        purchased=bool(user and user.id in buyers),
+        my_review_id=mine.id if mine else None,
+        reviews=payload,
+    )
 
 
 @router.post("/{slug}/reviews", response_model=schemas.ReviewResponse)
@@ -160,9 +177,9 @@ def upsert_review(
 ):
     """Create or update the signed-in user's review. One review per product."""
     product = _active_product(slug, db)
-    comment = body.comment.strip()
-    if len(comment) < 2:
-        raise HTTPException(status_code=400, detail="Write a short review before submitting")
+    comment = (body.comment or "").strip()
+    if comment and len(comment) < 2:
+        raise HTTPException(status_code=400, detail="Write at least 2 characters, or leave the comment empty")
 
     review = db.query(models.Review).filter(
         models.Review.product_id == product.id,

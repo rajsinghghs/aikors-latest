@@ -76,7 +76,7 @@ POLICIES = {
 <h2>Prices and payment</h2>
 <p>Prices are shown in INR. Checkout runs on Razorpay. A product is delivered when the payment is verified and the order status is paid. An unpaid or failed order does not include the file.</p>
 <h2>Reviews</h2>
-<p>Signed-in users can leave one review per product and can edit or delete it later. If that account has a paid order for the product, the review is marked as a verified purchase. We may remove a review that breaks these terms.</p>
+<p>Signed-in users can leave one rating per product, from 1 to 5 stars, with an optional comment, and can edit or delete it later. If that account has a paid order for the product, the rating is marked as a verified purchase. We may remove a rating that breaks these terms.</p>
 <h2>No exam guarantee</h2>
 <p>Notes and practice material are study aids. AIkors does not promise marks, admission, or a particular exam result.</p>
 <h2>Changes and availability</h2>
