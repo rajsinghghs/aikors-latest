@@ -42,17 +42,22 @@ app.mount("/css", StaticFiles(directory="css"), name="css")
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 try:
     os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/previews", exist_ok=True)
     os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
 except OSError:
     # Vercel Read-Only Filesystem Fix
     UPLOAD_DIR = "/tmp/uploads"
     os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/previews", exist_ok=True)
     os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
 
-# Only serve thumbnails publicly — NOT the files directory
+# Public images only — paid files stay private
 app.mount("/uploads/thumbnails", StaticFiles(directory=f"{UPLOAD_DIR}/thumbnails"), name="thumbnails")
+app.mount("/uploads/previews", StaticFiles(directory=f"{UPLOAD_DIR}/previews"), name="previews")
+app.mount("/previews", StaticFiles(directory="previews"), name="sample-previews")
 
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["support_email"] = os.getenv("SUPPORT_EMAIL", "").strip()
 
 # ─── Custom 404 Handler ──────────────────────────────────────────────────────
 @app.exception_handler(404)
@@ -129,6 +134,40 @@ async def serve_product(request: Request):
         request=request,
         name="product.html",
     )
+
+
+def _policy_page(request: Request, key: str):
+    from policies import POLICIES
+    page = POLICIES[key]
+    return templates.TemplateResponse(
+        request=request,
+        name="policy.html",
+        context={
+            "page_title": page["title"],
+            "updated": page["updated"],
+            "body": page["body"],
+        },
+    )
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy(request: Request):
+    return _policy_page(request, "privacy")
+
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page(request: Request):
+    return _policy_page(request, "terms")
+
+
+@app.get("/refund", response_class=HTMLResponse)
+async def refund_policy(request: Request):
+    return _policy_page(request, "refund")
+
+
+@app.get("/data-safety", response_class=HTMLResponse)
+async def data_safety(request: Request):
+    return _policy_page(request, "data_safety")
 
 
 # ─── FAANG-Level Admin Routing (Separate Pages) ──────────────────────────────

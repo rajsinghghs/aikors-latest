@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1040" viewBox="0 0 800 1040">
+  <rect width="800" height="1040" fill="#F4F4F5"/>
+  <rect x="40" y="36" width="720" height="968" rx="6" fill="#FFFFFF" stroke="#E4E4E7"/>
+  <text x="72" y="92" font-family="Georgia, serif" font-size="28" fill="#18181B">3. One-page revision</text>
+  <text x="72" y="128" font-family="Inter, Arial, sans-serif" font-size="14" fill="#71717A">The last page students flip to before a test</text>
+  <rect x="72" y="160" width="300" height="150" rx="12" fill="#ECFDF5" stroke="#A7F3D0"/>
+  <text x="92" y="198" font-family="Inter, Arial, sans-serif" font-size="14" fill="#047857">MUST REMEMBER</text>
+  <text x="92" y="232" font-family="Inter, Arial, sans-serif" font-size="16" fill="#064E3B">Three facts,</text>
+  <text x="92" y="256" font-family="Inter, Arial, sans-serif" font-size="16" fill="#064E3B">one formula,</text>
+  <text x="92" y="280" font-family="Inter, Arial, sans-serif" font-size="16" fill="#064E3B">one exception.</text>
+  <rect x="392" y="160" width="336" height="150" rx="12" fill="#FFFBEB" stroke="#FDE68A"/>
+  <text x="412" y="198" font-family="Inter, Arial, sans-serif" font-size="14" fill="#B45309">COMMON TRAP</text>
+  <text x="412" y="236" font-family="Inter, Arial, sans-serif" font-size="16" fill="#78350F">A warning line so a</text>
+  <text x="412" y="260" font-family="Inter, Arial, sans-serif" font-size="16" fill="#78350F">repeated mistake is visible.</text>
+  <text x="72" y="370" font-family="Georgia, serif" font-size="22" fill="#18181B">Check yourself</text>
+  <text x="72" y="414" font-family="Inter, Arial, sans-serif" font-size="16" fill="#3F3F46">1. Explain the idea without looking at the notes.</text>
+  <text x="72" y="450" font-family="Inter, Arial, sans-serif" font-size="16" fill="#3F3F46">2. Solve one short question in under two minutes.</text>
+  <text x="72" y="486" font-family="Inter, Arial, sans-serif" font-size="16" fill="#3F3F46">3. Write the exception from memory.</text>
+  <rect x="72" y="530" width="656" height="88" rx="10" fill="#F4F4F5"/>
+  <text x="92" y="568" font-family="Inter, Arial, sans-serif" font-size="15" fill="#52525B">Answer space stays blank in the preview.</text>
+  <text x="92" y="592" font-family="Inter, Arial, sans-serif" font-size="15" fill="#52525B">The full worked answer is in the paid file.</text>
+  <text x="72" y="960" font-family="Inter, Arial, sans-serif" font-size="13" fill="#A1A1AA">Sample content preview · Page 4</text>
+</svg>

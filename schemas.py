@@ -98,7 +98,19 @@ class ProductResponse(BaseModel):
     is_active: bool
     is_featured: bool
     total_sales: int
+    avg_rating: Optional[float] = None
+    review_count: int = 0
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ScreenshotResponse(BaseModel):
+    id: int
+    image_url: str
+    caption: Optional[str] = None
+    sort_order: int = 0
 
     class Config:
         from_attributes = True
@@ -107,6 +119,28 @@ class ProductResponse(BaseModel):
 class ProductDetailResponse(ProductResponse):
     """Extended product info — file_name shown but NOT file_url (protected)"""
     file_name: Optional[str] = None
+    screenshots: List[ScreenshotResponse] = []
+
+
+class ReviewCreate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: str = Field(..., min_length=2, max_length=1000)
+
+
+class ReviewResponse(BaseModel):
+    id: int
+    user_id: int
+    user_name: str
+    rating: int
+    comment: str
+    verified_purchase: bool
+    created_at: datetime
+
+
+class ReviewListResponse(BaseModel):
+    average: Optional[float] = None
+    count: int
+    reviews: List[ReviewResponse] = []
 
 
 # ─── Order Schemas ────────────────────────────────────────────────────────────

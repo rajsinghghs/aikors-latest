@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — AIkors{% endblock %}
+
+{% block content %}
+<article class="policy-page">
+  <p class="policy-kicker">AIkors policies</p>
+  <h1>{{ page_title }}</h1>
+  <p class="policy-updated">Last updated {{ updated }}</p>
+  <div class="policy-body">
+    {{ body|safe }}
+  </div>
+  <p class="policy-nav">
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="/refund">Refunds</a>
+    <a href="/data-safety">Data safety</a>
+  </p>
+</article>
+{% endblock %}

@@ -63,6 +63,38 @@
     color: var(--text-secondary); font-size: 1.05rem; line-height: 1.7;
   }
   
+  .preview-block { margin-top: 36px; }
+  .preview-block h2, .review-block h2 { font-size: 1.45rem; margin-bottom: 6px; }
+  .preview-note { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .shot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .shot-card {
+    display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
+    border: 1px solid var(--border); border-radius: 16px; background: var(--bg-surface); cursor: zoom-in;
+  }
+  .shot-card img { width: 100%; aspect-ratio: 4/5; object-fit: cover; background: #f4f4f5; }
+  .shot-card span { padding: 10px 12px 12px; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+  .lightbox {
+    position: fixed; inset: 0; z-index: 10000; display: none;
+    background: rgba(0,0,0,0.88); align-items: center; justify-content: center; padding: 24px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: min(920px, 100%); max-height: 84vh; border-radius: 12px; background: #fff; }
+  .lightbox-close {
+    position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%;
+    background: #fff; color: #111; font-size: 1.3rem;
+  }
+  .review-block { margin-top: 48px; }
+  .review-form, .review-card {
+    border: 1px solid var(--border); border-radius: 16px; background: var(--bg-surface); padding: 16px;
+    margin-top: 12px;
+  }
+  .star-pick { display: flex; gap: 6px; margin: 8px 0 12px; }
+  .star-pick button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); font-size: 1.1rem; color: #D97706; }
+  .star-pick button.on { background: #FEF3C7; border-color: #F59E0B; }
+  .review-card header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .verified { color: var(--success-text); font-size: 0.75rem; font-weight: 700; }
+  .review-empty { color: var(--text-muted); margin-top: 12px; }
+
   .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
   .tag-pill {
     padding: 6px 16px; border-radius: 100px;
@@ -113,6 +145,10 @@
     .product-layout { grid-template-columns: 1fr; gap: 40px; }
     .product-right { position: static; }
     .buy-card { padding: 24px; }
+    .shot-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .shot-grid { grid-template-columns: 1fr; }
   }
 </style>
 {% endblock %}

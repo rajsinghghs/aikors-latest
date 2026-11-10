@@ -2,7 +2,7 @@
 routes/products.py - Product listing, detail, and admin CRUD
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_, func
 from typing import List, Optional
 from pydantic import BaseModel
@@ -28,11 +28,13 @@ load_dotenv()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 try:
     os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/previews", exist_ok=True)
     os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
 except OSError:
     # Vercel Read-Only Filesystem Fix
     UPLOAD_DIR = "/tmp/uploads"
     os.makedirs(f"{UPLOAD_DIR}/thumbnails", exist_ok=True)
+    os.makedirs(f"{UPLOAD_DIR}/previews", exist_ok=True)
     os.makedirs(f"{UPLOAD_DIR}/files", exist_ok=True)
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -55,6 +57,7 @@ class ConfirmUploadRequest(BaseModel):
     file_url: str
     file_name: str
     type: str
+    caption: Optional[str] = None
 
 
 # ─── Public Endpoints ─────────────────────────────────────────────────────────
@@ -69,7 +72,9 @@ def list_products(
     db: Session = Depends(get_db)
 ):
     """List all active products with optional filtering."""
-    query = db.query(models.Product).filter(models.Product.is_active == True)
+    query = db.query(models.Product).options(
+        selectinload(models.Product.reviews)
+    ).filter(models.Product.is_active == True)
 
     if category:
         query = query.filter(func.lower(models.Product.category) == category.lower())
@@ -89,13 +94,121 @@ def list_products(
 @router.get("/{slug}", response_model=schemas.ProductDetailResponse)
 def get_product(slug: str, db: Session = Depends(get_db)):
     """Get a single product by slug."""
-    product = db.query(models.Product).filter(
+    product = db.query(models.Product).options(
+        selectinload(models.Product.reviews),
+        selectinload(models.Product.screenshots),
+    ).filter(
         models.Product.slug == slug,
         models.Product.is_active == True
     ).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    product.screenshots.sort(key=lambda shot: shot.sort_order or 0)
     return product
+
+
+def _active_product(slug: str, db: Session) -> models.Product:
+    product = db.query(models.Product).filter(
+        models.Product.slug == slug,
+        models.Product.is_active == True,
+    ).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+def _buyer_ids(product_id: int, db: Session) -> set:
+    rows = db.query(models.Order.user_id).join(models.OrderItem).filter(
+        models.OrderItem.product_id == product_id,
+        models.Order.status == models.OrderStatus.paid,
+    ).all()
+    return {row[0] for row in rows}
+
+
+@router.get("/{slug}/reviews", response_model=schemas.ReviewListResponse)
+def list_reviews(slug: str, db: Session = Depends(get_db)):
+    """Public reviews for a product."""
+    product = _active_product(slug, db)
+    reviews = db.query(models.Review).options(
+        selectinload(models.Review.user)
+    ).filter(
+        models.Review.product_id == product.id
+    ).order_by(models.Review.created_at.desc()).all()
+    buyers = _buyer_ids(product.id, db)
+    payload = [
+        schemas.ReviewResponse(
+            id=review.id,
+            user_id=review.user_id,
+            user_name=review.user.name if review.user else "Student",
+            rating=review.rating,
+            comment=review.comment,
+            verified_purchase=review.user_id in buyers,
+            created_at=review.created_at,
+        )
+        for review in reviews
+    ]
+    average = round(sum(item.rating for item in payload) / len(payload), 1) if payload else None
+    return schemas.ReviewListResponse(average=average, count=len(payload), reviews=payload)
+
+
+@router.post("/{slug}/reviews", response_model=schemas.ReviewResponse)
+def upsert_review(
+    slug: str,
+    body: schemas.ReviewCreate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Create or update the signed-in user's review. One review per product."""
+    product = _active_product(slug, db)
+    comment = body.comment.strip()
+    if len(comment) < 2:
+        raise HTTPException(status_code=400, detail="Write a short review before submitting")
+
+    review = db.query(models.Review).filter(
+        models.Review.product_id == product.id,
+        models.Review.user_id == user.id,
+    ).first()
+    if review:
+        review.rating = body.rating
+        review.comment = comment
+    else:
+        review = models.Review(
+            product_id=product.id,
+            user_id=user.id,
+            rating=body.rating,
+            comment=comment,
+        )
+        db.add(review)
+    db.commit()
+    db.refresh(review)
+    verified = user.id in _buyer_ids(product.id, db)
+    return schemas.ReviewResponse(
+        id=review.id,
+        user_id=user.id,
+        user_name=user.name,
+        rating=review.rating,
+        comment=review.comment,
+        verified_purchase=verified,
+        created_at=review.created_at,
+    )
+
+
+@router.delete("/{slug}/reviews/mine", status_code=204)
+def delete_my_review(
+    slug: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Remove the signed-in user's review."""
+    product = _active_product(slug, db)
+    review = db.query(models.Review).filter(
+        models.Review.product_id == product.id,
+        models.Review.user_id == user.id,
+    ).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    db.delete(review)
+    db.commit()
 
 
 # ─── Admin Endpoints ──────────────────────────────────────────────────────────
@@ -164,20 +277,55 @@ def delete_product(
 def get_upload_url(product_id: int, req: UploadUrlRequest, db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     if not generate_presigned_upload_url:
         raise HTTPException(status_code=500, detail="R2 Storage not configured")
-    folder = "thumbnails" if req.type == "thumbnail" else "files"
+    if req.type == "thumbnail":
+        folder = "thumbnails"
+    elif req.type == "screenshot":
+        folder = "previews"
+    else:
+        folder = "files"
     data = generate_presigned_upload_url(folder, req.filename, req.content_type)
     return data
 
 @router.post("/{product_id}/confirm-upload")
 def confirm_upload(product_id: int, req: ConfirmUploadRequest, db: Session = Depends(get_db), admin: models.User = Depends(get_current_admin)):
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
     if req.type == "thumbnail":
         product.thumbnail_url = req.file_url
+    elif req.type == "screenshot":
+        next_order = db.query(models.ProductScreenshot).filter(
+            models.ProductScreenshot.product_id == product.id
+        ).count()
+        db.add(models.ProductScreenshot(
+            product_id=product.id,
+            image_url=req.file_url,
+            caption=(req.caption or req.file_name or "Preview")[:200],
+            sort_order=next_order,
+        ))
     else:
         product.file_url = req.file_url
         product.file_name = req.file_name
     db.commit()
     return {"success": True}
+
+
+@router.delete("/{product_id}/screenshots/{screenshot_id}", status_code=204)
+def delete_screenshot(
+    product_id: int,
+    screenshot_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """Admin: remove a public preview image."""
+    shot = db.query(models.ProductScreenshot).filter(
+        models.ProductScreenshot.id == screenshot_id,
+        models.ProductScreenshot.product_id == product_id,
+    ).first()
+    if not shot:
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+    db.delete(shot)
+    db.commit()
 
 
 # ─── FALLBACK UPLOAD ROUTES (If R2 is missing) ────────────────────────────────────────
@@ -230,3 +378,51 @@ async def upload_thumbnail(product_id: int, file: UploadFile = File(...), db: Se
     product.thumbnail_url = f"/uploads/thumbnails/{unique_name}"
     db.commit()
     return {"thumbnail_url": product.thumbnail_url, "source": "Local"}
+
+
+@router.post("/{product_id}/upload-screenshot")
+async def upload_screenshot(
+    product_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """Admin: add a public content preview image (local or R2)."""
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    content = await file.read()
+    image_url = None
+    if upload_file_to_r2 and os.getenv("R2_ACCESS_KEY_ID"):
+        try:
+            image_url = upload_file_to_r2(
+                file_content=content,
+                original_filename=file.filename,
+                folder="previews",
+                content_type=file.content_type,
+            )
+        except Exception as exc:
+            print(f"R2 screenshot upload failed, falling back to local: {exc}")
+
+    if not image_url:
+        ext = os.path.splitext(file.filename or "")[1] or ".png"
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = f"{UPLOAD_DIR}/previews/{unique_name}"
+        async with aiofiles.open(file_path, "wb") as handle:
+            await handle.write(content)
+        image_url = f"/uploads/previews/{unique_name}"
+
+    next_order = db.query(models.ProductScreenshot).filter(
+        models.ProductScreenshot.product_id == product.id
+    ).count()
+    shot = models.ProductScreenshot(
+        product_id=product.id,
+        image_url=image_url,
+        caption=(file.filename or "Preview")[:200],
+        sort_order=next_order,
+    )
+    db.add(shot)
+    db.commit()
+    db.refresh(shot)
+    return {"id": shot.id, "image_url": shot.image_url, "caption": shot.caption}

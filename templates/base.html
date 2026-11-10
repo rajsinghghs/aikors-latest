@@ -36,13 +36,29 @@
 
 {% block footer %}
 <footer class="site-footer">
-  <div class="container site-footer-inner">
-    <a href="/" class="nav-logo" aria-label="AIkors home">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent);" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
-      AIkors
-    </a>
-    <p>&copy; <span id="footer-year"></span> AIkors. All rights reserved.</p>
+  <div class="container site-footer-grid">
+    <div>
+      <a href="/" class="nav-logo" aria-label="AIkors home">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent);" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+        AIkors
+      </a>
+      <p>Digital notes, e-books, and exam material. Pay once in INR and download from your dashboard.</p>
+    </div>
+    <div>
+      <h2>Store</h2>
+      <a href="/#catalog">Catalog</a>
+      <a href="/dashboard">My downloads</a>
+      <a href="/refund">Refunds</a>
+    </div>
+    <div>
+      <h2>Policies</h2>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms &amp; Conditions</a>
+      <a href="/data-safety">Data Safety</a>
+      {% if support_email %}<a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
+    </div>
   </div>
+  <p class="site-footer-copy">&copy; <span id="footer-year"></span> AIkors. Digital products, prices in INR.</p>
 </footer>
 <script>document.getElementById('footer-year').textContent = new Date().getFullYear();</script>
 {% endblock %}
