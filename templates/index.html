@@ -168,6 +168,11 @@
   <p class="hero-subtitle gsap-hero">
     Instant access to top-tier assignment notes, banking study material, PDFs, and educational resources. Simple, affordable, and ready to download.
   </p>
+  <div class="trust-row gsap-hero">
+    <a href="/#catalog">Preview before you buy</a>
+    <a href="/refund">7-day delivery refund</a>
+    <a href="/data-safety">Data safety</a>
+  </div>
 
   <!-- Mobile Quick Vault -->
   <div class="mobile-quick-vault gsap-hero">
@@ -429,6 +434,7 @@
           <div class="pro-card-image-wrap">${p.category ? `<div class="pro-badge">${escapeHtml(p.category)}</div>` : ''}${thumb}</div>
           <div class="pro-card-body">
             <h3 class="pro-title">${escapeHtml(p.title)}</h3>
+            ${typeof renderStars === 'function' ? renderStars(p.avg_rating, p.review_count) : ''}
             <p class="pro-desc">${escapeHtml(p.short_description || p.description || 'Premium material.')}</p>
             <div class="pro-footer">
               <span class="pro-price">${typeof formatPrice !== 'undefined' ? formatPrice(p.price) : '₹'+p.price}</span>

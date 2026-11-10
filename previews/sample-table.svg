@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1040" viewBox="0 0 800 1040">
+  <rect width="800" height="1040" fill="#F4F4F5"/>
+  <rect x="40" y="36" width="720" height="968" rx="6" fill="#FFFFFF" stroke="#E4E4E7"/>
+  <text x="72" y="92" font-family="Georgia, serif" font-size="28" fill="#18181B">2. Quick comparison</text>
+  <text x="72" y="128" font-family="Inter, Arial, sans-serif" font-size="14" fill="#71717A">Tables and formulas sit on pages like this</text>
+  <rect x="72" y="160" width="656" height="48" fill="#18181B"/>
+  <text x="92" y="190" font-family="Inter, Arial, sans-serif" font-size="15" fill="#FFFFFF">Topic</text>
+  <text x="320" y="190" font-family="Inter, Arial, sans-serif" font-size="15" fill="#FFFFFF">What to write</text>
+  <text x="540" y="190" font-family="Inter, Arial, sans-serif" font-size="15" fill="#FFFFFF">Watch out</text>
+  <rect x="72" y="208" width="656" height="64" fill="#FAFAFA" stroke="#E4E4E7"/>
+  <text x="92" y="246" font-family="Inter, Arial, sans-serif" font-size="15" fill="#18181B">Concept A</text>
+  <text x="320" y="246" font-family="Inter, Arial, sans-serif" font-size="15" fill="#3F3F46">One clear line</text>
+  <text x="540" y="246" font-family="Inter, Arial, sans-serif" font-size="15" fill="#3F3F46">Common mix-up</text>
+  <rect x="72" y="272" width="656" height="64" fill="#FFFFFF" stroke="#E4E4E7"/>
+  <text x="92" y="310" font-family="Inter, Arial, sans-serif" font-size="15" fill="#18181B">Concept B</text>
+  <text x="320" y="310" font-family="Inter, Arial, sans-serif" font-size="15" fill="#3F3F46">A short formula</text>
+  <text x="540" y="310" font-family="Inter, Arial, sans-serif" font-size="15" fill="#3F3F46">Units</text>
+  <rect x="72" y="336" width="656" height="64" fill="#FAFAFA" stroke="#E4E4E7"/>
+  <text x="92" y="374" font-family="Inter, Arial, sans-serif" font-size="15" fill="#18181B">Concept C</text>
+  <text x="320" y="374" font-family="Inter, Arial, sans-serif" font-size="15" fill="#3F3F46">When to use it</text>
+  <text x="540" y="374" font-family="Inter, Arial, sans-serif" font-size="15" fill="#3F3F46">Exception</text>
+  <text x="72" y="460" font-family="Georgia, serif" font-size="22" fill="#18181B">Worked step</text>
+  <text x="72" y="504" font-family="Inter, Arial, sans-serif" font-size="16" fill="#3F3F46">Step 1  Read the question and mark the given values.</text>
+  <text x="72" y="540" font-family="Inter, Arial, sans-serif" font-size="16" fill="#3F3F46">Step 2  Apply the rule from the table above.</text>
+  <text x="72" y="576" font-family="Inter, Arial, sans-serif" font-size="16" fill="#3F3F46">Step 3  Write the final line and the unit.</text>
+  <text x="72" y="960" font-family="Inter, Arial, sans-serif" font-size="13" fill="#A1A1AA">Sample content preview · Page 3</text>
+</svg>

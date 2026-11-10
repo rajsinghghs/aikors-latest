@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from datetime import datetime, timedelta
 from sqlalchemy import cast, Date
 from sqlalchemy import func, or_ , String
@@ -247,9 +247,39 @@ def list_all_products(
         query = query.filter(models.Product.title.ilike(f"%{search}%"))
         
     total = query.count()
-    products = query.order_by(models.Product.created_at.desc()).offset(skip).limit(limit).all()
-    
-    return {"total": total, "items": products}
+    products = query.options(
+        selectinload(models.Product.screenshots)
+    ).order_by(models.Product.created_at.desc()).offset(skip).limit(limit).all()
+
+    items = []
+    for product in products:
+        items.append({
+            "id": product.id,
+            "title": product.title,
+            "slug": product.slug,
+            "description": product.description,
+            "short_description": product.short_description,
+            "price": product.price,
+            "original_price": product.original_price,
+            "thumbnail_url": product.thumbnail_url,
+            "file_name": product.file_name,
+            "category": product.category,
+            "tags": product.tags,
+            "is_active": product.is_active,
+            "is_featured": product.is_featured,
+            "total_sales": product.total_sales,
+            "screenshots": [
+                {
+                    "id": shot.id,
+                    "image_url": shot.image_url,
+                    "caption": shot.caption,
+                    "sort_order": shot.sort_order,
+                }
+                for shot in sorted(product.screenshots, key=lambda shot: shot.sort_order or 0)
+            ],
+        })
+
+    return {"total": total, "items": items}
 
 
 @router.put("/products/{product_id}")

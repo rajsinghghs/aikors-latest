@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1040" viewBox="0 0 800 1040">
+  <rect width="800" height="1040" fill="#F4F1EA"/>
+  <rect x="48" y="48" width="704" height="944" rx="8" fill="#FFFcf7" stroke="#E4E4E7"/>
+  <rect x="48" y="48" width="14" height="944" fill="#2563EB"/>
+  <text x="96" y="140" font-family="Georgia, serif" font-size="18" fill="#2563EB" letter-spacing="3">AIKORS SAMPLE</text>
+  <text x="96" y="230" font-family="Georgia, serif" font-size="48" fill="#18181B">Study notes</text>
+  <text x="96" y="290" font-family="Georgia, serif" font-size="28" fill="#3F3F46">Chapter layout preview</text>
+  <line x1="96" y1="330" x2="280" y2="330" stroke="#2563EB" stroke-width="3"/>
+  <text x="96" y="400" font-family="Georgia, serif" font-size="20" fill="#52525B">1. Key ideas</text>
+  <text x="96" y="444" font-family="Georgia, serif" font-size="20" fill="#52525B">2. Worked examples</text>
+  <text x="96" y="488" font-family="Georgia, serif" font-size="20" fill="#52525B">3. Short revision</text>
+  <text x="96" y="532" font-family="Georgia, serif" font-size="20" fill="#52525B">4. Practice prompts</text>
+  <text x="96" y="860" font-family="Georgia, serif" font-size="16" fill="#71717A">Sample page for review. Replace this with a real screenshot from Admin ’ Products.</text>
+</svg>

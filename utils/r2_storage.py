@@ -39,8 +39,8 @@ def upload_file_to_r2(file_content: bytes, original_filename: str, folder: str, 
             ContentType=content_type
         )
         
-        # Agar thumbnail hai, toh public URL return karein
-        if folder == "thumbnails" and public_domain:
+        # Thumbnails and content previews are public. Paid files stay private.
+        if folder in ("thumbnails", "previews") and public_domain:
             # e.g., https://pub-xxx.r2.dev/thumbnails/abc.jpg
             return f"{public_domain}/{object_key}"
         
@@ -93,7 +93,7 @@ def generate_presigned_upload_url(folder: str, original_filename: str, content_t
         )
         
         file_url = object_key
-        if folder == "thumbnails" and public_domain:
+        if folder in ("thumbnails", "previews") and public_domain:
             file_url = f"{public_domain}/{object_key}"
             
         return {

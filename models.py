@@ -3,7 +3,7 @@ models.py - SQLAlchemy ORM models for the entire platform
 """
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean,
-    DateTime, ForeignKey, Text, Enum
+    DateTime, ForeignKey, Text, Enum, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -38,6 +38,7 @@ class User(Base):
 
     # Relationships
     orders = relationship("Order", back_populates="user")
+    reviews = relationship("Review", back_populates="user")
 
 
 class Product(Base):
@@ -63,6 +64,23 @@ class Product(Base):
 
     # Relationships
     order_items = relationship("OrderItem", back_populates="product")
+    reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
+    screenshots = relationship(
+        "ProductScreenshot",
+        back_populates="product",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def review_count(self) -> int:
+        return len(self.reviews or [])
+
+    @property
+    def avg_rating(self):
+        reviews = self.reviews or []
+        if not reviews:
+            return None
+        return round(sum(review.rating for review in reviews) / len(reviews), 1)
 
 
 class Order(Base):
@@ -111,3 +129,35 @@ class Payment(Base):
 
     # Relationships
     order = relationship("Order", back_populates="payment")
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("user_id", "product_id", name="uq_review_user_product"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", back_populates="reviews")
+    product = relationship("Product", back_populates="reviews")
+
+
+class ProductScreenshot(Base):
+    """Public preview images so buyers can see what is inside a product."""
+    __tablename__ = "product_screenshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    image_url = Column(String(500), nullable=False)
+    caption = Column(String(200), nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    product = relationship("Product", back_populates="screenshots")

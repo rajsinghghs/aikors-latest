@@ -260,6 +260,15 @@ function logout() {
 }
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
+function renderStars(rating, count) {
+  const total = Number(count) || 0;
+  if (!total || rating == null) return '';
+  const rounded = Math.max(1, Math.min(5, Math.round(Number(rating))));
+  const stars = '★★★★★'.slice(0, rounded) + '☆☆☆☆☆'.slice(0, 5 - rounded);
+  const label = `${Number(rating).toFixed(1)} out of 5 from ${total} review${total === 1 ? '' : 's'}`;
+  return `<span class="star-line" role="img" aria-label="${label}"><b aria-hidden="true">${stars}</b> ${Number(rating).toFixed(1)} (${total})</span>`;
+}
+
 function formatPrice(amount) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency', currency: 'INR',
