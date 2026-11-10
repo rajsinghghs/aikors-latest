@@ -419,7 +419,14 @@ img, svg { max-width: 100%; }
 .policy-nav { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--border); font-weight: 600; }
 
 .star-line { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
-.star-line b { color: #D97706; letter-spacing: 1px; font-weight: 700; }
+.star-line.is-empty { color: var(--text-muted); font-weight: 500; }
+.stars { position: relative; display: inline-block; line-height: 1; font-size: 0.95rem; }
+.stars-base, .stars-fill { font-weight: 700; letter-spacing: 1px; }
+.stars-base { color: #E4E4E7; }
+.stars-fill {
+  position: absolute; left: 0; top: 0; overflow: hidden; white-space: nowrap;
+  color: #D97706; height: 100%;
+}
 
 @media (max-width: 720px) {
   .site-footer-grid { grid-template-columns: 1fr; gap: 22px; }

@@ -88,12 +88,31 @@
     border: 1px solid var(--border); border-radius: 16px; background: var(--bg-surface); padding: 16px;
     margin-top: 12px;
   }
-  .star-pick { display: flex; gap: 6px; margin: 8px 0 12px; }
-  .star-pick button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); font-size: 1.1rem; color: #D97706; }
-  .star-pick button.on { background: #FEF3C7; border-color: #F59E0B; }
+  .rating-summary {
+    display: grid; grid-template-columns: 140px 1fr; gap: 20px; align-items: center;
+    border: 1px solid var(--border); border-radius: 16px; background: var(--bg-surface); padding: 16px;
+  }
+  .rating-score { text-align: center; }
+  .rating-score strong { display: block; font-size: 2.6rem; line-height: 1; letter-spacing: -0.04em; }
+  .rating-score p { color: var(--text-muted); font-size: 0.8rem; margin-top: 6px; }
+  .bar-row { display: grid; grid-template-columns: 16px 1fr 28px; gap: 8px; align-items: center; margin: 4px 0; font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; }
+  .bar { height: 8px; border-radius: 99px; background: #E4E4E7; overflow: hidden; }
+  .bar span { display: block; height: 100%; background: #D97706; border-radius: 99px; }
+  .rating-high { color: var(--text-secondary); font-size: 0.85rem; margin: 10px 0 0; }
+  .star-pick { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .star-pick button { width: 42px; height: 42px; border-radius: 10px; border: 1px solid var(--border); font-size: 1.2rem; color: #D4D4D8; background: var(--bg-base); }
+  .star-pick button.on { background: #FEF3C7; border-color: #F59E0B; color: #D97706; }
+  .rating-label { min-height: 1.2em; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; }
+  .review-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--bg-base); color: var(--text-primary); resize: vertical; }
+  .review-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .review-kicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--success-text); }
   .review-card header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-  .verified { color: var(--success-text); font-size: 0.75rem; font-weight: 700; }
+  .review-card p { color: var(--text-secondary); margin-top: 8px; }
+  .verified { color: var(--success-text); font-size: 0.75rem; font-weight: 700; margin-left: 8px; }
   .review-empty { color: var(--text-muted); margin-top: 12px; }
+  @media (max-width: 560px) {
+    .rating-summary { grid-template-columns: 1fr; }
+  }
 
   .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
   .tag-pill {
@@ -210,6 +229,7 @@
         <div class="product-hero-container" id="product-thumbnail"></div>
         <div class="product-badge-ui" id="product-category" style="display:none;"></div>
         <h1 class="product-title" id="product-title"></h1>
+        <div id="product-rating-inline"></div>
         
         <div class="product-meta-row">
           <span style="display:flex; align-items:center; gap:6px;">
@@ -221,6 +241,19 @@
         <div class="section-divider"></div>
         <div class="product-desc" id="product-description"></div>
         <div class="tags-container" id="product-tags"></div>
+
+        <div id="preview-block" class="preview-block" style="display:none;">
+          <h2>Inside this product</h2>
+          <p class="preview-note" id="preview-note"></p>
+          <div class="shot-grid" id="shot-grid"></div>
+        </div>
+
+        <div class="review-block" id="review-block">
+          <h2>Ratings</h2>
+          <div id="rating-summary"></div>
+          <div id="review-form-slot"></div>
+          <div id="review-list"></div>
+        </div>
       </div>
 
       <!-- Right Content (Buy Card) -->
@@ -246,6 +279,7 @@
               <div class="buy-card-price" id="buy-price"></div>
               <div class="buy-card-original" id="buy-original" style="display:none;"></div>
             </div>
+            <div id="buy-rating"></div>
             
             <ul class="feature-list">
               <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg> Instant digital download</li>
@@ -267,6 +301,11 @@
     </div>
   </div>
 
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Preview">
+    <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Close preview">×</button>
+    <img id="lightbox-img" alt="">
+  </div>
+
   <!-- Not Found State -->
   <div id="not-found" style="display:none; text-align:center; padding:120px 0;">
     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted); margin-bottom:20px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -283,6 +322,14 @@
 <script>
   let currentProduct = null;
   let isPurchased = false;
+  let selectedRating = 0;
+  const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+  const SAMPLE_PREVIEWS = [
+    { image_url: '/previews/sample-cover.svg', caption: 'Cover and contents' },
+    { image_url: '/previews/sample-notes.svg', caption: 'Topic notes' },
+    { image_url: '/previews/sample-summary.svg', caption: 'Chapter summary' },
+    { image_url: '/previews/sample-table.svg', caption: 'Revision table' }
+  ];
 
   document.addEventListener('DOMContentLoaded', loadProduct);
 
@@ -322,6 +369,7 @@
       } else {
         updateQuickBtn(false);
       }
+      await loadReviews();
     } catch (err) {
       showNotFound();
     }
@@ -357,6 +405,10 @@
     }
 
     updateQuickBtn(false);
+    renderPreviews(p);
+    const ratingHtml = typeof renderStars === 'function' ? renderStars(p.avg_rating, p.review_count) : '';
+    document.getElementById('product-rating-inline').innerHTML = ratingHtml;
+    document.getElementById('buy-rating').innerHTML = ratingHtml;
 
     const rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     gsap.to("#gsap-left", { opacity: 1, y: 0, duration: rm ? 0 : 0.6, ease: "power2.out" });
@@ -448,6 +500,7 @@
         
         updateQuickBtn(true);
         triggerDownload();
+        loadReviews();
       }
     } catch (err) {
       Toast.error('Payment verification failed. Contact support.');
@@ -564,6 +617,200 @@
       loader.classList.remove('active');
       Toast.error(err.message || 'Download stopped unexpectedly.');
     }
+  }
+
+  function renderPreviews(p) {
+    const real = Array.isArray(p.screenshots) ? p.screenshots : [];
+    const shots = real.length ? real : SAMPLE_PREVIEWS;
+    const block = document.getElementById('preview-block');
+    block.style.display = 'block';
+    document.getElementById('preview-note').textContent = real.length
+      ? 'Pages from this product. The paid file stays locked until checkout.'
+      : 'Sample page layouts, so you can see the kind of notes, summaries, and tables inside. These are not this product’s file.';
+    document.getElementById('shot-grid').innerHTML = shots.map((shot, index) => `
+      <button type="button" class="shot-card" data-shot="${index}">
+        <img src="${escapeHtml(shot.image_url)}" alt="${escapeHtml(shot.caption || 'Preview')}">
+        <span>${escapeHtml(shot.caption || 'Preview')}</span>
+      </button>
+    `).join('');
+    document.querySelectorAll('.shot-card').forEach((card) => {
+      card.addEventListener('click', () => openLightbox(shots[Number(card.dataset.shot)]));
+    });
+  }
+
+  function openLightbox(shot) {
+    if (!shot) return;
+    const box = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-img');
+    img.src = shot.image_url;
+    img.alt = shot.caption || 'Preview';
+    box.classList.add('open');
+  }
+
+  function closeLightbox() {
+    const box = document.getElementById('lightbox');
+    box.classList.remove('open');
+    document.getElementById('lightbox-img').removeAttribute('src');
+  }
+
+  document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+  document.getElementById('lightbox').addEventListener('click', (event) => {
+    if (event.target.id === 'lightbox') closeLightbox();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeLightbox();
+  });
+
+  function breakdownCount(breakdown, star) {
+    if (!breakdown) return 0;
+    return Number(breakdown[star] ?? breakdown[String(star)] ?? 0);
+  }
+
+  async function loadReviews() {
+    if (!currentProduct) return;
+    try {
+      const data = await API.get('/products/' + currentProduct.slug + '/reviews');
+      renderRatingSummary(data);
+      renderReviewForm(data);
+      renderReviewList(data);
+    } catch (err) {
+      document.getElementById('review-list').innerHTML = '<p class="review-empty">Ratings could not be loaded.</p>';
+    }
+  }
+
+  function renderRatingSummary(data) {
+    const ratingHtml = typeof renderStars === 'function' ? renderStars(data.average, data.count) : '';
+    document.getElementById('product-rating-inline').innerHTML = ratingHtml;
+    document.getElementById('buy-rating').innerHTML = ratingHtml;
+
+    const summary = document.getElementById('rating-summary');
+    if (!data.count) {
+      summary.innerHTML = '<p class="review-empty">No ratings yet. A star rating from someone who used these notes shows up here.</p>';
+      return;
+    }
+    const high = breakdownCount(data.breakdown, 5) + breakdownCount(data.breakdown, 4);
+    const highPct = Math.round((high / data.count) * 100);
+    const bars = [5, 4, 3, 2, 1].map((star) => {
+      const count = breakdownCount(data.breakdown, star);
+      const width = Math.round((count / data.count) * 100);
+      return `<div class="bar-row"><span>${star}</span><div class="bar"><span style="width:${width}%"></span></div><span>${count}</span></div>`;
+    }).join('');
+    summary.innerHTML = `
+      <div class="rating-summary">
+        <div class="rating-score">
+          <strong>${Number(data.average).toFixed(1)}</strong>
+          ${typeof starGraphic === 'function' ? starGraphic(data.average) : ''}
+          <p>${data.count} rating${data.count === 1 ? '' : 's'}</p>
+        </div>
+        <div>${bars}</div>
+      </div>
+      <p class="rating-high">${highPct}% of ratings are 4 or 5 stars</p>`;
+  }
+
+  function renderReviewForm(data) {
+    const slot = document.getElementById('review-form-slot');
+    if (!Auth.isLoggedIn()) {
+      slot.innerHTML = '<div class="review-form"><p style="margin-bottom:12px;">Log in to rate this product. Buyers are marked as a verified purchase.</p><a href="/login" class="btn-primary" style="height:40px;padding:0 16px;">Log in</a></div>';
+      return;
+    }
+    const mine = (data.reviews || []).find((review) => review.id === data.my_review_id);
+    selectedRating = mine ? mine.rating : 0;
+    const buttons = [1, 2, 3, 4, 5].map((star) =>
+      `<button type="button" class="star-btn ${star <= selectedRating ? 'on' : ''}" data-star="${star}" aria-label="${star} ${star === 1 ? 'star' : 'stars'}, ${RATING_LABELS[star]}">★</button>`
+    ).join('');
+    slot.innerHTML = `
+      <form class="review-form" id="review-form">
+        <p class="review-kicker">${data.purchased || isPurchased ? 'Verified purchase' : 'Your rating'}</p>
+        <div class="star-pick" role="radiogroup" aria-label="Star rating">${buttons}</div>
+        <p id="rating-label" class="rating-label">${selectedRating ? RATING_LABELS[selectedRating] : 'Choose a star'}</p>
+        <label for="review-comment" class="preview-note">Comment, optional</label>
+        <textarea id="review-comment" maxlength="1000" rows="3" placeholder="What was useful in these notes?"></textarea>
+        <div class="review-actions">
+          <button type="submit" class="btn-primary" style="height:42px;padding:0 18px;">${mine ? 'Update rating' : 'Submit rating'}</button>
+          ${mine ? '<button type="button" id="delete-review" class="btn-ghost" style="height:42px;">Delete</button>' : ''}
+        </div>
+      </form>`;
+    document.getElementById('review-comment').value = mine && mine.comment ? mine.comment : '';
+    const picker = slot.querySelector('.star-pick');
+    picker.querySelectorAll('.star-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        selectedRating = Number(button.dataset.star);
+        paintStars();
+      });
+      button.addEventListener('mouseenter', () => paintStars(Number(button.dataset.star)));
+    });
+    picker.addEventListener('mouseleave', () => paintStars());
+    document.getElementById('review-form').addEventListener('submit', submitReview);
+    const remove = document.getElementById('delete-review');
+    if (remove) remove.addEventListener('click', deleteReview);
+  }
+
+  function paintStars(hoverValue) {
+    const value = hoverValue || selectedRating;
+    document.querySelectorAll('.star-btn').forEach((button) => {
+      button.classList.toggle('on', Number(button.dataset.star) <= value);
+    });
+    const label = document.getElementById('rating-label');
+    if (label) label.textContent = value ? RATING_LABELS[value] : 'Choose a star';
+  }
+
+  async function submitReview(event) {
+    event.preventDefault();
+    if (!selectedRating) {
+      Toast.info('Choose a star rating');
+      return;
+    }
+    const comment = document.getElementById('review-comment').value.trim();
+    if (comment && comment.length < 2) {
+      Toast.info('Write at least 2 characters, or leave the comment empty');
+      return;
+    }
+    const button = event.target.querySelector('button[type="submit"]');
+    setLoading(button, true, 'Saving...');
+    try {
+      await API.post('/products/' + currentProduct.slug + '/reviews', {
+        rating: selectedRating,
+        comment: comment
+      });
+      Toast.success('Rating saved');
+      await loadReviews();
+    } catch (err) {
+      Toast.error(err.message || 'Could not save rating');
+      setLoading(button, false);
+    }
+  }
+
+  async function deleteReview() {
+    try {
+      await API.delete('/products/' + currentProduct.slug + '/reviews/mine');
+      selectedRating = 0;
+      Toast.success('Rating removed');
+      await loadReviews();
+    } catch (err) {
+      Toast.error(err.message || 'Could not delete rating');
+    }
+  }
+
+  function renderReviewList(data) {
+    const list = document.getElementById('review-list');
+    const reviews = data.reviews || [];
+    if (!reviews.length) {
+      list.innerHTML = '';
+      return;
+    }
+    list.innerHTML = reviews.map((review) => `
+      <article class="review-card">
+        <header>
+          <div>
+            <strong>${escapeHtml(review.user_name || 'Student')}</strong>
+            ${review.verified_purchase ? '<span class="verified">Verified purchase</span>' : ''}
+          </div>
+          <time datetime="${escapeHtml(review.created_at)}">${typeof formatDate === 'function' ? formatDate(review.created_at) : ''}</time>
+        </header>
+        ${typeof starGraphic === 'function' ? starGraphic(review.rating) : ''}
+        ${review.comment ? `<p>${escapeHtml(review.comment)}</p>` : ''}
+      </article>
+    `).join('');
   }
 
   function showNotFound() {

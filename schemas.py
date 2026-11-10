@@ -2,7 +2,7 @@
 schemas.py - Pydantic models for request/response validation
 """
 from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 from models import UserRole, OrderStatus
 
@@ -124,7 +124,7 @@ class ProductDetailResponse(ProductResponse):
 
 class ReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
-    comment: str = Field(..., min_length=2, max_length=1000)
+    comment: str = Field(default="", max_length=1000)
 
 
 class ReviewResponse(BaseModel):
@@ -140,6 +140,9 @@ class ReviewResponse(BaseModel):
 class ReviewListResponse(BaseModel):
     average: Optional[float] = None
     count: int
+    breakdown: Dict[str, int]
+    purchased: bool = False
+    my_review_id: Optional[int] = None
     reviews: List[ReviewResponse] = []
 
 
