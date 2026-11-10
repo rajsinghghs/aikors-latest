@@ -66,12 +66,12 @@
   .preview-block { margin-top: 36px; }
   .preview-block h2, .review-block h2 { font-size: 1.45rem; margin-bottom: 6px; }
   .preview-note { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; }
-  .shot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .shot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .shot-card {
     display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
     border: 1px solid var(--border); border-radius: 16px; background: var(--bg-surface); cursor: zoom-in;
   }
-  .shot-card img { width: 100%; aspect-ratio: 4/5; object-fit: cover; background: #f4f4f5; }
+  .shot-card img { width: 100%; height: 150px; object-fit: cover; object-position: top; background: #f4f4f5; }
   .shot-card span { padding: 10px 12px 12px; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
   .lightbox {
     position: fixed; inset: 0; z-index: 10000; display: none;
@@ -165,6 +165,7 @@
     .product-right { position: static; }
     .buy-card { padding: 24px; }
     .shot-grid { grid-template-columns: 1fr 1fr; }
+    .shot-card img { height: 120px; }
   }
   @media (max-width: 560px) {
     .shot-grid { grid-template-columns: 1fr; }
@@ -625,11 +626,11 @@
     const block = document.getElementById('preview-block');
     block.style.display = 'block';
     document.getElementById('preview-note').textContent = real.length
-      ? 'Pages from this product. The paid file stays locked until checkout.'
-      : 'Sample page layouts, so you can see the kind of notes, summaries, and tables inside. These are not this product’s file.';
+      ? 'A quick look at the pages. Click any image for the full preview. The paid file stays locked until checkout.'
+      : 'Sample page layouts, so you can see the kind of notes, summaries, and tables inside. These are not this product’s file. Click any image to enlarge it.';
     document.getElementById('shot-grid').innerHTML = shots.map((shot, index) => `
       <button type="button" class="shot-card" data-shot="${index}">
-        <img src="${escapeHtml(shot.image_url)}" alt="${escapeHtml(shot.caption || 'Preview')}">
+        <img src="${escapeHtml(shot.thumb_url || shot.image_url)}" alt="${escapeHtml(shot.caption || 'Preview')}" loading="lazy" decoding="async" width="240" height="150">
         <span>${escapeHtml(shot.caption || 'Preview')}</span>
       </button>
     `).join('');
@@ -804,6 +805,7 @@
           <div>
             <strong>${escapeHtml(review.user_name || 'Student')}</strong>
             ${review.verified_purchase ? '<span class="verified">Verified purchase</span>' : ''}
+            ${review.is_visible === false ? '<span class="verified">Hidden on the store</span>' : ''}
           </div>
           <time datetime="${escapeHtml(review.created_at)}">${typeof formatDate === 'function' ? formatDate(review.created_at) : ''}</time>
         </header>

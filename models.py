@@ -71,13 +71,16 @@ class Product(Base):
         cascade="all, delete-orphan",
     )
 
+    def _visible_reviews(self):
+        return [review for review in (self.reviews or []) if review.is_visible]
+
     @property
     def review_count(self) -> int:
-        return len(self.reviews or [])
+        return len(self._visible_reviews())
 
     @property
     def avg_rating(self):
-        reviews = self.reviews or []
+        reviews = self._visible_reviews()
         if not reviews:
             return None
         return round(sum(review.rating for review in reviews) / len(reviews), 1)
@@ -138,10 +141,12 @@ class Review(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     rating = Column(Integer, nullable=False)
     comment = Column(Text, nullable=False)
+    author_name = Column(String(100), nullable=True)
+    is_visible = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -156,6 +161,7 @@ class ProductScreenshot(Base):
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     image_url = Column(String(500), nullable=False)
+    thumb_url = Column(String(500), nullable=True)
     caption = Column(String(200), nullable=True)
     sort_order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

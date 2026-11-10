@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 # Load env before imports that depend on it
 load_dotenv()
 
-from database import engine, Base
+from database import engine, Base, ensure_schema
 import models  # noqa: F401
 from routes import auth, products, payments, orders, admin
 
@@ -210,6 +210,14 @@ async def admin_products(request: Request):
     )
 
 
+@app.get("/admin/reviews", response_class=HTMLResponse)
+async def admin_reviews(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_reviews.html",
+    )
+
+
 @app.get("/admin/orders", response_class=HTMLResponse)
 async def admin_orders(request: Request):
     return templates.TemplateResponse(
@@ -237,6 +245,7 @@ app.include_router(admin.router, prefix="/api")
 async def startup():
     """Create tables and seed admin user on first run."""
     Base.metadata.create_all(bind=engine)
+    ensure_schema()
     await seed_admin()
 
 async def seed_admin():

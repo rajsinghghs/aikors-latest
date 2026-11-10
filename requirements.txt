@@ -16,3 +16,4 @@ httpx
 google-auth
 jinja2
 boto3
+pillow

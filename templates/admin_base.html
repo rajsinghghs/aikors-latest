@@ -105,6 +105,7 @@
       <a href="/admin" id="nav-dashboard">Dashboard</a>
       <a href="/admin/users" id="nav-users">Users</a>
       <a href="/admin/products" id="nav-products">Products</a>
+      <a href="/admin/reviews" id="nav-reviews">Reviews</a>
       <a href="/admin/orders" id="nav-orders">Orders</a>
       <a href="/admin/payments" id="nav-payments">Payments</a>
     </nav>
@@ -148,6 +149,7 @@
   if (currentPath === '/admin') document.getElementById('nav-dashboard').classList.add('active');
   if (currentPath.includes('/admin/users')) document.getElementById('nav-users').classList.add('active');
   if (currentPath.includes('/admin/products')) document.getElementById('nav-products').classList.add('active');
+  if (currentPath.includes('/admin/reviews')) document.getElementById('nav-reviews').classList.add('active');
   if (currentPath.includes('/admin/orders')) document.getElementById('nav-orders').classList.add('active');
   if (currentPath.includes('/admin/payments')) document.getElementById('nav-payments').classList.add('active');
 </script>

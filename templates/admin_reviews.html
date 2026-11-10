@@ -1,0 +1,280 @@
+{% extends "admin_base.html" %}
+{% block title %}Manage Reviews — AIkors Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+  .reviews-table td { white-space: normal; vertical-align: top; }
+  .comment-cell { max-width: 340px; color: var(--text-secondary); }
+  .review-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .modal-overlay { position: fixed; inset: 0; z-index: 3000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; background: var(--bg-surface); border-radius: var(--radius-xl); padding: 32px; position: relative; box-shadow: var(--shadow-modal); }
+  .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+  .star-pick { display: flex; gap: 6px; }
+  .star-pick button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border); font-size: 1.1rem; color: #D4D4D8; background: var(--bg-base); cursor: pointer; }
+  .star-pick button.on { background: #FEF3C7; border-color: #F59E0B; color: #D97706; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">Reviews</h2>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+    <input type="text" id="search-input" class="search-input" placeholder="Search name, product, or comment..." oninput="handleSearch()">
+    <select id="visibility-filter" class="search-input" style="min-width:140px; max-width:160px;" onchange="handleFilter()">
+      <option value="">All</option>
+      <option value="visible">Visible</option>
+      <option value="hidden">Hidden</option>
+    </select>
+    <button onclick="openReviewForm(null)" class="btn-primary">Add Review</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="data-table reviews-table">
+    <thead>
+      <tr><th>Review</th><th>Product</th><th>Rating</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="table-body">
+      <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination-container" class="pagination"></div>
+
+<div class="modal-overlay" id="review-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeReviewForm()">✕</button>
+    <h3 id="modal-title" style="font-size:1.4rem; margin-bottom:20px;">Add Review</h3>
+    <form id="review-form" onsubmit="saveReview(event)">
+      <input type="hidden" id="edit-id">
+      <div class="form-group">
+        <label class="form-label">Product *</label>
+        <input id="product-search" class="form-input" placeholder="Search product title..." oninput="filterProducts()">
+        <select id="product-id" class="form-input" style="margin-top:8px;" required></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reviewer name *</label>
+        <input id="author-name" class="form-input" maxlength="100" required placeholder="Name shown on the product page">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stars *</label>
+        <div class="star-pick" id="star-pick">
+          <button type="button" data-star="1">★</button>
+          <button type="button" data-star="2">★</button>
+          <button type="button" data-star="3">★</button>
+          <button type="button" data-star="4">★</button>
+          <button type="button" data-star="5">★</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comment</label>
+        <textarea id="review-comment" class="form-input" rows="4" maxlength="1000" placeholder="Optional"></textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="review-visible" checked> Show on the product page
+        </label>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:12px;">
+        <button type="button" onclick="closeReviewForm()" class="btn-ghost">Cancel</button>
+        <button type="submit" class="btn-primary" id="save-review-btn">Save Review</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let state = { page: 1, limit: 15, search: '', visibility: '', total: 0 };
+  let searchTimeout = null;
+  let loadedReviews = [];
+  let products = [];
+  let selectedRating = 5;
+
+  document.getElementById('star-pick').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-star]');
+    if (!button) return;
+    selectedRating = Number(button.dataset.star);
+    paintStars();
+  });
+
+  function paintStars() {
+    document.querySelectorAll('#star-pick button').forEach((button) => {
+      button.classList.toggle('on', Number(button.dataset.star) <= selectedRating);
+    });
+  }
+
+  async function loadProducts() {
+    try {
+      const res = await API.get('/admin/products?skip=0&limit=200');
+      products = res.items || [];
+      renderProductOptions(products);
+    } catch (err) {
+      Toast.error('Could not load products');
+    }
+  }
+
+  function renderProductOptions(list) {
+    const select = document.getElementById('product-id');
+    const current = select.value;
+    select.innerHTML = list.map((product) =>
+      `<option value="${product.id}">${escapeHtml(product.title)}</option>`
+    ).join('') || '<option value="">No products</option>';
+    if (current && list.some((product) => String(product.id) === current)) select.value = current;
+  }
+
+  function filterProducts() {
+    const term = document.getElementById('product-search').value.trim().toLowerCase();
+    const list = term ? products.filter((product) => (product.title || '').toLowerCase().includes(term)) : products;
+    renderProductOptions(list);
+  }
+
+  async function loadData() {
+    const skip = (state.page - 1) * state.limit;
+    let url = `/admin/reviews?skip=${skip}&limit=${state.limit}`;
+    if (state.search) url += `&search=${encodeURIComponent(state.search)}`;
+    if (state.visibility) url += `&visibility=${encodeURIComponent(state.visibility)}`;
+    try {
+      const res = await API.get(url);
+      loadedReviews = res.items || [];
+      state.total = res.total || 0;
+      const html = loadedReviews.map((review) => `
+        <tr>
+          <td>
+            <div style="font-weight:600;">${escapeHtml(review.author_name)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px;">${review.source === 'admin' ? 'Added by admin' : 'Customer'}${review.user_email ? ' · ' + escapeHtml(review.user_email) : ''}</div>
+            <div class="comment-cell">${escapeHtml(review.comment) || '<span style="color:var(--text-muted);">No comment</span>'}</div>
+          </td>
+          <td>${escapeHtml(review.product_title || '—')}</td>
+          <td style="font-weight:700;">${review.rating} / 5</td>
+          <td><span class="badge ${review.is_visible ? 'badge-success' : 'badge-danger'}">${review.is_visible ? 'Visible' : 'Hidden'}</span></td>
+          <td>
+            <div class="review-actions">
+              <button class="btn-ghost" style="padding:6px 12px; height:auto;" onclick="toggleReview(${review.id}, ${review.is_visible ? 'false' : 'true'})">${review.is_visible ? 'Hide' : 'Show'}</button>
+              <button class="btn-ghost" style="padding:6px 12px; height:auto;" onclick="openReviewForm(${review.id})">Edit</button>
+              <button class="btn-ghost" style="padding:6px 12px; height:auto; color:var(--danger);" onclick="removeReview(${review.id})">Remove</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      document.getElementById('table-body').innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding:24px;">No reviews found</td></tr>';
+      updatePaginationUI();
+    } catch (err) {
+      Toast.error(err.message || 'Failed to load reviews');
+    }
+  }
+
+  function handleSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      state.search = document.getElementById('search-input').value;
+      state.page = 1;
+      loadData();
+    }, 400);
+  }
+
+  function handleFilter() {
+    state.visibility = document.getElementById('visibility-filter').value;
+    state.page = 1;
+    loadData();
+  }
+
+  function updatePaginationUI() {
+    const container = document.getElementById('pagination-container');
+    const totalPages = Math.ceil(state.total / state.limit) || 1;
+    const start = state.total === 0 ? 0 : ((state.page - 1) * state.limit) + 1;
+    const end = Math.min(state.page * state.limit, state.total);
+    container.innerHTML = `
+      <div class="pagination-info">Showing <span>${start}</span> to <span>${end}</span> of <span>${state.total}</span></div>
+      <div class="page-btns">
+        <button class="page-btn" onclick="changePage(-1)" ${state.page === 1 ? 'disabled' : ''}>Previous</button>
+        <button class="page-btn" onclick="changePage(1)" ${state.page === totalPages ? 'disabled' : ''}>Next</button>
+      </div>`;
+  }
+
+  function changePage(delta) { state.page += delta; loadData(); }
+
+  function openReviewForm(id) {
+    document.getElementById('review-form').reset();
+    document.getElementById('edit-id').value = '';
+    document.getElementById('review-visible').checked = true;
+    selectedRating = 5;
+    renderProductOptions(products);
+    document.getElementById('modal-title').textContent = 'Add Review';
+    if (id) {
+      const review = loadedReviews.find((item) => item.id === id);
+      if (!review) return;
+      document.getElementById('modal-title').textContent = 'Edit Review';
+      document.getElementById('edit-id').value = review.id;
+      document.getElementById('product-id').value = String(review.product_id);
+      document.getElementById('author-name').value = review.author_name || '';
+      document.getElementById('review-comment').value = review.comment || '';
+      document.getElementById('review-visible').checked = !!review.is_visible;
+      selectedRating = review.rating || 5;
+    }
+    paintStars();
+    document.getElementById('review-modal').classList.add('open');
+  }
+
+  function closeReviewForm() {
+    document.getElementById('review-modal').classList.remove('open');
+  }
+
+  async function saveReview(event) {
+    event.preventDefault();
+    const button = document.getElementById('save-review-btn');
+    button.disabled = true;
+    const id = document.getElementById('edit-id').value;
+    const payload = {
+      product_id: Number(document.getElementById('product-id').value),
+      author_name: document.getElementById('author-name').value.trim(),
+      rating: selectedRating,
+      comment: document.getElementById('review-comment').value.trim(),
+      is_visible: document.getElementById('review-visible').checked
+    };
+    try {
+      if (id) await API.patch('/admin/reviews/' + id, payload);
+      else await API.post('/admin/reviews', payload);
+      Toast.success(id ? 'Review updated' : 'Review added');
+      closeReviewForm();
+      loadData();
+    } catch (err) {
+      Toast.error(err.message || 'Could not save review');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function toggleReview(id, visible) {
+    try {
+      await API.patch('/admin/reviews/' + id, { is_visible: visible });
+      Toast.success(visible ? 'Review is visible' : 'Review hidden');
+      loadData();
+    } catch (err) {
+      Toast.error(err.message || 'Could not update review');
+    }
+  }
+
+  async function removeReview(id) {
+    if (!confirm('Remove this review permanently?')) return;
+    try {
+      await API.delete('/admin/reviews/' + id);
+      Toast.success('Review removed');
+      loadData();
+    } catch (err) {
+      Toast.error(err.message || 'Could not remove review');
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  paintStars();
+  loadProducts();
+  setTimeout(loadData, 100);
+</script>
+{% endblock %}

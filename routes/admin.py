@@ -272,6 +272,7 @@ def list_all_products(
                 {
                     "id": shot.id,
                     "image_url": shot.image_url,
+                    "thumb_url": shot.thumb_url,
                     "caption": shot.caption,
                     "sort_order": shot.sort_order,
                 }
@@ -426,3 +427,150 @@ def list_all_products(
     return db.query(models.Product).order_by(
         models.Product.created_at.desc()
     ).offset(skip).limit(limit).all()
+
+
+class AdminReviewWrite(BaseModel):
+    product_id: Optional[int] = None
+    author_name: Optional[str] = None
+    rating: Optional[int] = None
+    comment: Optional[str] = None
+    is_visible: Optional[bool] = None
+
+
+def _admin_review_dict(review: models.Review) -> dict:
+    name = (review.author_name or "").strip()
+    if not name and review.user:
+        name = review.user.name
+    return {
+        "id": review.id,
+        "product_id": review.product_id,
+        "product_title": review.product.title if review.product else "",
+        "user_id": review.user_id,
+        "user_email": review.user.email if review.user else None,
+        "author_name": name or "Student",
+        "rating": review.rating,
+        "comment": review.comment or "",
+        "is_visible": bool(review.is_visible),
+        "created_at": review.created_at,
+        "source": "customer" if review.user_id else "admin",
+    }
+
+
+@router.get("/reviews")
+def list_reviews_admin(
+    search: Optional[str] = None,
+    visibility: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """Admin: search customer and store-added reviews."""
+    query = db.query(models.Review).outerjoin(models.User).join(models.Product)
+    if visibility == "visible":
+        query = query.filter(models.Review.is_visible.is_(True))
+    elif visibility == "hidden":
+        query = query.filter(models.Review.is_visible.is_(False))
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(or_(
+            models.Review.comment.ilike(term),
+            models.Review.author_name.ilike(term),
+            models.User.name.ilike(term),
+            models.User.email.ilike(term),
+            models.Product.title.ilike(term),
+        ))
+    total = query.count()
+    rows = query.order_by(models.Review.created_at.desc()).offset(skip).limit(limit).all()
+    return {"total": total, "items": [_admin_review_dict(row) for row in rows]}
+
+
+@router.post("/reviews", status_code=201)
+def create_review_admin(
+    body: AdminReviewWrite,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """Admin: add a review that shows on the product page."""
+    if not body.product_id:
+        raise HTTPException(status_code=400, detail="Choose a product")
+    product = db.query(models.Product).filter(models.Product.id == body.product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    name = (body.author_name or "").strip()
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Reviewer name needs at least 2 characters")
+    if body.rating is None or body.rating < 1 or body.rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be from 1 to 5")
+    comment = (body.comment or "").strip()
+    if len(comment) > 1000:
+        raise HTTPException(status_code=400, detail="Comment is too long")
+    review = models.Review(
+        user_id=None,
+        product_id=product.id,
+        author_name=name[:100],
+        rating=body.rating,
+        comment=comment,
+        is_visible=True if body.is_visible is None else body.is_visible,
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    review.product = product
+    return _admin_review_dict(review)
+
+
+@router.patch("/reviews/{review_id}")
+def update_review_admin(
+    review_id: int,
+    body: AdminReviewWrite,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """Admin: edit, hide, or show a review."""
+    review = db.query(models.Review).options(
+        joinedload(models.Review.user),
+        joinedload(models.Review.product),
+    ).filter(models.Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    data = body.model_dump(exclude_unset=True)
+    if "product_id" in data and data["product_id"]:
+        product = db.query(models.Product).filter(models.Product.id == data["product_id"]).first()
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        review.product_id = product.id
+        review.product = product
+    if "author_name" in data:
+        name = (data["author_name"] or "").strip()
+        if review.user_id is None and len(name) < 2:
+            raise HTTPException(status_code=400, detail="Reviewer name needs at least 2 characters")
+        review.author_name = name[:100] if name else None
+    if "rating" in data:
+        if data["rating"] is None or data["rating"] < 1 or data["rating"] > 5:
+            raise HTTPException(status_code=400, detail="Rating must be from 1 to 5")
+        review.rating = data["rating"]
+    if "comment" in data:
+        comment = (data["comment"] or "").strip()
+        if len(comment) > 1000:
+            raise HTTPException(status_code=400, detail="Comment is too long")
+        review.comment = comment
+    if "is_visible" in data and data["is_visible"] is not None:
+        review.is_visible = bool(data["is_visible"])
+    db.commit()
+    db.refresh(review)
+    return _admin_review_dict(review)
+
+
+@router.delete("/reviews/{review_id}", status_code=204)
+def delete_review_admin(
+    review_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    """Admin: permanently remove a review."""
+    review = db.query(models.Review).filter(models.Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    db.delete(review)
+    db.commit()

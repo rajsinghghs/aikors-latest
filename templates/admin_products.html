@@ -5,15 +5,23 @@
 <style>
   .modal-overlay { position: fixed; inset: 0; z-index: 3000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 20px; }
   .modal-overlay.open { display: flex; }
-  .modal-box { width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; background: var(--bg-surface); border-radius: var(--radius-xl); padding: 32px; position: relative; box-shadow: var(--shadow-modal);}
-  .modal-close { position:absolute; top:20px; right:20px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-secondary);}
+  .modal-box { width: 100%; max-width: 760px; max-height: 90vh; overflow-y: auto; background: var(--bg-surface); border-radius: var(--radius-xl); padding: 32px; position: relative; box-shadow: var(--shadow-modal); }
+  .shot-admin { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; padding: 8px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border); }
+  .shot-admin img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-base); }
+  .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+
+  .pending-shots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .pending-shot-card { position: relative; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg-base); }
+  .pending-shot-card img { width: 100%; height: 76px; object-fit: cover; display: block; }
+  .pending-shot-card .pending-shot-remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(0, 0, 0, 0.7); color: #fff; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .pending-shot-card .pending-shot-meta { font-size: 0.7rem; color: var(--text-muted); padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .skeleton-row td { padding: 16px; border-bottom: 1px solid var(--border); }
-  .skel-bar { 
-    height: 16px; background: var(--bg-surface-hover); 
-    border-radius: 4px; animation: faang-shimmer 2s infinite linear; 
-    background-image: linear-gradient(90deg, var(--bg-surface-hover) 0px, var(--border) 50%, var(--bg-surface-hover) 100%); 
-    background-size: 200% 100%; 
+  .skel-bar {
+    height: 16px; background: var(--bg-surface-hover);
+    border-radius: 4px; animation: faang-shimmer 2s infinite linear;
+    background-image: linear-gradient(90deg, var(--bg-surface-hover) 0px, var(--border) 50%, var(--bg-surface-hover) 100%);
+    background-size: 200% 100%;
   }
   @keyframes faang-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
@@ -25,7 +33,7 @@
   .progress-header { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
   .progress-track { background: var(--border-strong); height: 8px; border-radius: 10px; overflow: hidden; width: 100%; }
   .progress-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.1s linear; }
-  .progress-footer { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
+  .progress-footer { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
 </style>
 {% endblock %}
 
@@ -34,7 +42,7 @@
   <h2 class="page-title">Products</h2>
   <div style="display:flex; gap:12px;">
     <input type="text" id="search-input" class="search-input" placeholder="Search Title or Category..." oninput="handleSearch()">
-    <button onclick="openProductForm(null)" class="btn-primary">Add Product</button>
+    <button type="button" onclick="openProductForm(null)" class="btn-primary">Add Product</button>
   </div>
 </div>
 
@@ -51,7 +59,7 @@
 
 <div class="modal-overlay" id="product-modal">
   <div class="modal-box">
-    <button class="modal-close" onclick="closeProductForm()">✕</button>
+    <button type="button" class="modal-close" onclick="closeProductForm()">✕</button>
     <h3 id="modal-title" style="font-size:1.5rem; margin-bottom:24px;">Add Product</h3>
     <form id="product-form" onsubmit="saveProduct(event)">
       <input type="hidden" id="edit-id">
@@ -77,8 +85,8 @@
       </div>
       
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-        <div class="form-group"><label class="form-label">Price (₹) *</label><input id="p-price" class="form-input" type="number" required></div>
-        <div class="form-group"><label class="form-label">Original Price (₹)</label><input id="p-original" class="form-input" type="number"></div>
+        <div class="form-group"><label class="form-label">Price (₹) *</label><input id="p-price" class="form-input" type="number" step="any" required></div>
+        <div class="form-group"><label class="form-label">Original Price (₹)</label><input id="p-original" class="form-input" type="number" step="any"></div>
       </div>
       
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -98,7 +106,7 @@
           <label class="form-label" style="font-weight:600;">Upload Thumbnail (Image)</label>
           <div style="display:flex; gap:8px; margin-bottom:12px;">
             <input type="file" id="thumb-file" accept="image/*" class="form-input" style="padding:8px;" onchange="handleMediaPreview(this, 'thumb')">
-            <button type="button" onclick="uploadMedia('thumbnail')" class="btn-ghost" style="border: 1px solid var(--accent); color: var(--accent);">Upload</button>
+            <button type="button" onclick="uploadMedia('thumbnail', this)" class="btn-ghost" style="border: 1px solid var(--accent); color: var(--accent);">Upload</button>
           </div>
           <div id="thumb-preview-box" style="display:none; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-base); max-width: max-content;"></div>
         </div>
@@ -109,12 +117,37 @@
           <label class="form-label" style="font-weight:600;">Upload Product File (PDF/ZIP)</label>
           <div style="display:flex; gap:8px; margin-bottom:12px;">
             <input type="file" id="product-file" accept=".pdf,.zip,.rar" class="form-input" style="padding:8px;" onchange="handleMediaPreview(this, 'file')">
-            <button type="button" onclick="uploadMedia('file')" class="btn-ghost" style="border: 1px solid var(--accent); color: var(--accent);">Upload</button>
+            <button type="button" onclick="uploadMedia('file', this)" class="btn-ghost" style="border: 1px solid var(--accent); color: var(--accent);">Upload</button>
           </div>
           <div id="file-preview-box" style="display:none; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-base); max-width: 100%;"></div>
         </div>
 
-        <!-- LIVE PROGRESS BAR UI -->
+        <div style="height:1px; background:var(--border-strong); margin:20px 0;"></div>
+
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" style="font-weight:600; margin:0;">Preview images (Bulk Upload)</label>
+            <button type="button" id="clear-pending-shots-btn" onclick="clearPendingShots()" class="btn-ghost" style="display:none; font-size:0.75rem; padding:2px 8px; height:auto; color:var(--danger);">Clear Selected</button>
+          </div>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 12px;">Shown small on the product page. A click opens the full preview. Select as many images as you want in bulk — images are automatically compressed before upload.</p>
+          
+          <!-- Already uploaded screenshots -->
+          <div id="shot-list" style="margin-bottom:12px;"></div>
+
+          <!-- Pending bulk selection preview grid -->
+          <div id="pending-shot-box" style="display:none; margin-bottom:12px;">
+            <div id="pending-shot-count" style="font-size:0.8rem; font-weight:600; color:var(--accent); margin-bottom:8px;"></div>
+            <div id="pending-shot-list" class="pending-shots-grid"></div>
+          </div>
+
+          <input id="shot-caption" class="form-input" placeholder="Caption, optional (applies to uploaded batch)" style="margin-bottom:8px;">
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <input type="file" id="shot-files" accept="image/*" multiple class="form-input" style="padding:8px;" onchange="handleShotFilesSelect(this)">
+            <button type="button" onclick="uploadScreenshots(this)" class="btn-ghost" style="border: 1px solid var(--accent); color: var(--accent); white-space:nowrap;">Upload All</button>
+          </div>
+        </div>
+
+        <!-- LIVE PROGRESS BAR UI (KB/s, MB/s, Transferred Size & Percentage) -->
         <div id="upload-progress-ui" class="upload-progress-box">
           <div class="progress-header">
             <span id="up-status">Uploading...</span>
@@ -124,8 +157,8 @@
             <div id="up-fill" class="progress-fill"></div>
           </div>
           <div class="progress-footer">
-            <span id="up-file-name" style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:180px;">file.pdf</span>
-            <span id="up-speed">Calculating...</span>
+            <span id="up-file-name" style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:65%;">file.pdf</span>
+            <span id="up-speed" style="font-weight:600; color:var(--accent);">0.00 KB/s</span>
           </div>
         </div>
 
@@ -144,7 +177,21 @@
 <script>
   let state = { page: 1, limit: 15, search: '', total: 0 };
   let searchTimeout = null;
-  let allLoadedProducts = []; 
+  let allLoadedProducts = [];
+  let currentShots = [];
+  let pendingShotFiles = [];
+
+  function formatBytes(bytes) {
+    if (!bytes || bytes <= 0) return '0 KB';
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + ' MB';
+    return (bytes / 1024).toFixed(1) + ' KB';
+  }
+
+  function formatSpeed(bytesPerSec) {
+    if (!bytesPerSec || bytesPerSec <= 0) return '0.00 KB/s';
+    if (bytesPerSec >= 1048576) return (bytesPerSec / 1048576).toFixed(2) + ' MB/s';
+    return (bytesPerSec / 1024).toFixed(2) + ' KB/s';
+  }
 
   async function loadData() {
     const skelHtml = Array(5).fill(`
@@ -176,25 +223,32 @@
             <div style="font-size:0.8rem; color:var(--accent);">${p.category || '-'}</div>
           </td>
           <td>
-            <div style="font-weight:700;">${formatPrice(p.price)}</div>
-            ${p.original_price ? `<div style="font-size:0.8rem; text-decoration:line-through; color:var(--text-muted);">${formatPrice(p.original_price)}</div>` : ''}
+            <div style="font-weight:700;">${typeof formatPrice === 'function' ? formatPrice(p.price) : '₹' + p.price}</div>
+            ${p.original_price ? `<div style="font-size:0.8rem; text-decoration:line-through; color:var(--text-muted);">${typeof formatPrice === 'function' ? formatPrice(p.original_price) : '₹' + p.original_price}</div>` : ''}
           </td>
           <td><span style="font-weight:600;">${p.total_sales || 0}</span> enrolled</td>
-          <td><span class="badge ${p.is_active ? 'badge-success' : 'badge-danger'}">${p.is_active ? 'Active':'Hidden'}</span></td>
+          <td><span class="badge ${p.is_active ? 'badge-success' : 'badge-danger'}">${p.is_active ? 'Active' : 'Hidden'}</span></td>
           <td>
-            <button class="btn-ghost" style="padding:6px 14px; height:auto;" onclick="openProductForm(${p.id})">Edit</button>
+            <button type="button" class="btn-ghost" style="padding:6px 14px; height:auto;" onclick="openProductForm('${p.id}')">Edit</button>
           </td>
         </tr>
       `).join('');
 
       document.getElementById('table-body').innerHTML = html || `<tr><td colspan="5" style="text-align:center; padding:24px;">No products found</td></tr>`;
       updatePaginationUI();
-    } catch(err) { Toast.error("Failed to load products"); }
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error("Failed to load products");
+      console.error(err);
+    }
   }
 
   function handleSearch() {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => { state.search = document.getElementById('search-input').value; state.page = 1; loadData(); }, 400);
+    searchTimeout = setTimeout(() => {
+      state.search = document.getElementById('search-input').value;
+      state.page = 1;
+      loadData();
+    }, 400);
   }
 
   function updatePaginationUI() {
@@ -206,67 +260,453 @@
     container.innerHTML = `
       <div class="pagination-info">Showing <span>${start}</span> to <span>${end}</span> of <span>${state.total}</span></div>
       <div class="page-btns">
-        <button class="page-btn" onclick="changePage(-1)" ${state.page === 1 ? 'disabled' : ''}>Previous</button>
-        <button class="page-btn" onclick="changePage(1)" ${state.page === totalPages ? 'disabled' : ''}>Next</button>
+        <button type="button" class="page-btn" onclick="changePage(-1)" ${state.page === 1 ? 'disabled' : ''}>Previous</button>
+        <button type="button" class="page-btn" onclick="changePage(1)" ${state.page === totalPages ? 'disabled' : ''}>Next</button>
       </div>
     `;
   }
 
-  function changePage(delta) { state.page += delta; loadData(); }
+  function changePage(delta) {
+    state.page += delta;
+    loadData();
+  }
+
+  // Render already-uploaded preview screenshots inside the modal
+  function renderShotList() {
+    const listEl = document.getElementById('shot-list');
+    if (!listEl) return;
+    if (!Array.isArray(currentShots) || currentShots.length === 0) {
+      listEl.innerHTML = `<div style="font-size:0.8rem; color:var(--text-muted);">No preview images uploaded yet.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = currentShots.map((shot, idx) => {
+      const fullUrl = typeof shot === 'string' ? shot : (shot.image_url || shot.url || shot.file_url || '');
+      const thumbUrl = typeof shot === 'string' ? shot : (shot.thumb_url || fullUrl);
+      const caption = typeof shot === 'object' && shot ? (shot.caption || '') : '';
+      const shotId = typeof shot === 'object' && shot ? (shot.id ?? idx) : idx;
+      return `
+        <div class="shot-admin">
+          <a href="${fullUrl}" target="_blank" rel="noopener">
+            <img src="${thumbUrl}" alt="${caption || 'Preview'}">
+          </a>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:0.85rem; font-weight:500; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              ${caption || 'Preview image #' + (idx + 1)}
+            </div>
+          </div>
+          <button type="button" class="btn-ghost" style="color:var(--danger); padding:4px 10px; height:auto;" onclick="deleteScreenshot('${shotId}', ${idx})">Remove</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Handle bulk file selection (appends to queue so user can pick as many images as they want)
+  function handleShotFilesSelect(input) {
+    const selected = Array.from(input.files || []);
+    if (!selected.length) return;
+
+    selected.forEach(file => {
+      const exists = pendingShotFiles.some(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified);
+      if (!exists) {
+        pendingShotFiles.push(file);
+      }
+    });
+
+    input.value = '';
+    renderPendingShots();
+  }
+
+  function removePendingShot(idx) {
+    pendingShotFiles.splice(idx, 1);
+    renderPendingShots();
+  }
+
+  function clearPendingShots() {
+    pendingShotFiles = [];
+    const input = document.getElementById('shot-files');
+    if (input) input.value = '';
+    renderPendingShots();
+  }
+
+  function renderPendingShots() {
+    const box = document.getElementById('pending-shot-box');
+    const list = document.getElementById('pending-shot-list');
+    const countEl = document.getElementById('pending-shot-count');
+    const clearBtn = document.getElementById('clear-pending-shots-btn');
+
+    if (!box || !list || !countEl) return;
+
+    if (pendingShotFiles.length === 0) {
+      box.style.display = 'none';
+      if (clearBtn) clearBtn.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+
+    const totalBytes = pendingShotFiles.reduce((acc, f) => acc + f.size, 0);
+    box.style.display = 'block';
+    if (clearBtn) clearBtn.style.display = 'inline-block';
+    countEl.textContent = `${pendingShotFiles.length} image(s) ready for bulk upload (${formatBytes(totalBytes)})`;
+
+    list.innerHTML = pendingShotFiles.map((file, idx) => {
+      const thumbUrl = URL.createObjectURL(file);
+      return `
+        <div class="pending-shot-card">
+          <button type="button" class="pending-shot-remove" title="Remove" onclick="removePendingShot(${idx})">✕</button>
+          <img src="${thumbUrl}" alt="${file.name}">
+          <div class="pending-shot-meta" title="${file.name}">${formatBytes(file.size)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Client-side image compression before upload (outputs JPEG for backend preview_variants compatibility)
+  function compressImage(file, maxWidth = 1600, quality = 0.85) {
+    return new Promise((resolve) => {
+      if (!file.type || !file.type.startsWith('image/') || file.type === 'image/gif') {
+        resolve(file);
+        return;
+      }
+      const img = new Image();
+      const objUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objUrl);
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const outType = 'image/jpeg';
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size >= file.size) {
+            resolve(file);
+            return;
+          }
+          const baseName = file.name.replace(/\.[^/.]+$/, '');
+          const compressedFile = new File([blob], baseName + '.jpg', {
+            type: outType,
+            lastModified: Date.now()
+          });
+          resolve(compressedFile);
+        }, outType, quality);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objUrl);
+        resolve(file);
+      };
+      img.src = objUrl;
+    });
+  }
+
+  async function deleteScreenshot(shotId, idx) {
+    const productId = document.getElementById('edit-id').value;
+    if (!productId) return;
+    try {
+      await API.delete(`/products/${productId}/screenshots/${shotId}`);
+      currentShots.splice(idx, 1);
+      renderShotList();
+      Toast.success('Preview image removed');
+      loadData();
+    } catch (err) {
+      Toast.error(err.message || 'Failed to remove preview image');
+    }
+  }
+
+  // LIVE PROGRESS BAR XHR HELPER (Works for PUT presigned URLs AND POST FormData uploads)
+  function uploadWithProgress(url, bodyData, options = {}) {
+    const {
+      method = 'PUT',
+      contentType = null,
+      headers = {},
+      fileName = 'file',
+      statusPrefix = 'Uploading...'
+    } = options;
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      const uiBox = document.getElementById('upload-progress-ui');
+      const uiFill = document.getElementById('up-fill');
+      const uiPercent = document.getElementById('up-percent');
+      const uiSpeed = document.getElementById('up-speed');
+      const uiStatus = document.getElementById('up-status');
+      const uiFileName = document.getElementById('up-file-name');
+
+      uiBox.style.display = 'block';
+      uiFill.style.width = '0%';
+      uiPercent.innerText = '0%';
+      uiStatus.innerText = statusPrefix;
+      uiStatus.style.color = 'var(--text-primary)';
+      uiFileName.innerText = fileName;
+      uiSpeed.innerText = '0.00 KB/s';
+
+      const startTime = Date.now();
+      let lastTime = startTime;
+      let lastLoaded = 0;
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          uiFill.style.width = percent + '%';
+          uiPercent.innerText = percent + '%';
+          uiFileName.innerText = `${fileName} (${formatBytes(e.loaded)} / ${formatBytes(e.total)})`;
+
+          const now = Date.now();
+          const timeDiff = (now - lastTime) / 1000;
+          const totalElapsed = Math.max((now - startTime) / 1000, 0.05);
+
+          if (timeDiff >= 0.2) {
+            const instantSpeed = (e.loaded - lastLoaded) / timeDiff;
+            uiSpeed.innerText = formatSpeed(instantSpeed);
+            lastTime = now;
+            lastLoaded = e.loaded;
+          } else {
+            const avgSpeed = e.loaded / totalElapsed;
+            uiSpeed.innerText = formatSpeed(avgSpeed);
+          }
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          uiStatus.innerText = 'Completed!';
+          uiStatus.style.color = 'var(--success)';
+          uiFill.style.width = '100%';
+          uiPercent.innerText = '100%';
+          let parsed = xhr.responseText;
+          try {
+            parsed = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+          } catch (_) {}
+          resolve(parsed);
+        } else {
+          uiStatus.innerText = 'Failed!';
+          uiStatus.style.color = 'var(--danger)';
+          let errMsg = `Upload failed (${xhr.status})`;
+          try {
+            const errJson = JSON.parse(xhr.responseText);
+            errMsg = errJson.detail || errJson.message || errMsg;
+          } catch (_) {}
+          const error = new Error(errMsg);
+          error.status = xhr.status;
+          reject(error);
+        }
+      };
+
+      xhr.onerror = () => {
+        uiStatus.innerText = 'Network Error!';
+        uiStatus.style.color = 'var(--danger)';
+        reject(new Error('Network error during upload'));
+      };
+
+      xhr.open(method, url, true);
+      if (contentType) {
+        xhr.setRequestHeader('Content-Type', contentType);
+      }
+      Object.entries(headers).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) xhr.setRequestHeader(k, v);
+      });
+      xhr.send(bodyData);
+    });
+  }
+
+  function getApiUrlAndHeaders(endpoint) {
+    const baseUrl = (typeof API !== 'undefined' && API.baseUrl) ? API.baseUrl : '/api';
+    const fullUrl = endpoint.startsWith('http') || endpoint.startsWith('/api/')
+      ? endpoint
+      : `${baseUrl.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
+    const token = (typeof Auth !== 'undefined' && typeof Auth.getToken === 'function')
+      ? Auth.getToken()
+      : (localStorage.getItem('token') || localStorage.getItem('access_token') || '');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return { fullUrl, headers };
+  }
+
+  // Bulk upload preview screenshots matching routes/products.py:
+  // 1) Direct R2 Upload (/products/{id}/get-upload-url + /products/{id}/confirm-upload with type='screenshot')
+  // 2) Fallback Local/Server Upload (/products/{id}/upload-screenshot with single 'file' & 'caption')
+  async function uploadScreenshots(btnEl) {
+    const id = document.getElementById('edit-id').value;
+    if (!id) {
+      Toast.error('Please save the product first');
+      return;
+    }
+
+    const filesInput = document.getElementById('shot-files');
+    if (filesInput && filesInput.files && filesInput.files.length > 0) {
+      handleShotFilesSelect(filesInput);
+    }
+
+    if (pendingShotFiles.length === 0) {
+      Toast.error('Please select at least one preview image');
+      return;
+    }
+
+    const captionInput = document.getElementById('shot-caption');
+    const caption = captionInput ? captionInput.value.trim() : '';
+
+    const btn = btnEl || document.activeElement;
+    const originalText = btn ? btn.innerHTML : 'Upload All';
+    if (btn) {
+      btn.innerHTML = 'Compressing...';
+      btn.disabled = true;
+    }
+
+    try {
+      // Step 1: Compress all selected images in bulk
+      const totalCount = pendingShotFiles.length;
+      const compressedFiles = [];
+      for (let i = 0; i < totalCount; i++) {
+        if (btn) btn.innerHTML = `Compressing (${i + 1}/${totalCount})...`;
+        const cFile = await compressImage(pendingShotFiles[i]);
+        compressedFiles.push(cFile);
+      }
+
+      const { fullUrl: fallbackUrl, headers } = getApiUrlAndHeaders(`/products/${id}/upload-screenshot`);
+
+      // Step 2: Upload each image in the bulk queue with live KB/s & MB/s progress bar
+      for (let i = 0; i < compressedFiles.length; i++) {
+        const file = compressedFiles[i];
+        const label = `[${i + 1}/${compressedFiles.length}] ${file.name}`;
+        const statusText = `Uploading image ${i + 1} of ${compressedFiles.length}...`;
+        if (btn) btn.innerHTML = `Uploading (${i + 1}/${compressedFiles.length})...`;
+
+        let shotRes = null;
+
+        // Try Direct R2 Presigned Upload first
+        try {
+          const urlRes = await API.post(`/products/${id}/get-upload-url`, {
+            filename: file.name,
+            content_type: file.type || 'image/jpeg',
+            type: 'screenshot'
+          });
+
+          await uploadWithProgress(urlRes.upload_url, file, {
+            method: 'PUT',
+            contentType: file.type || 'image/jpeg',
+            fileName: label,
+            statusPrefix: statusText
+          });
+
+          shotRes = await API.post(`/products/${id}/confirm-upload`, {
+            file_url: urlRes.file_url,
+            file_name: urlRes.file_name,
+            type: 'screenshot',
+            caption: caption || file.name,
+            thumb_url: urlRes.file_url
+          });
+        } catch (r2Err) {
+          // Fallback to POST /api/products/{id}/upload-screenshot
+          const formData = new FormData();
+          formData.append('file', file);
+          if (caption) formData.append('caption', caption);
+
+          shotRes = await uploadWithProgress(fallbackUrl, formData, {
+            method: 'POST',
+            headers,
+            fileName: label,
+            statusPrefix: statusText
+          });
+        }
+
+        if (shotRes && (shotRes.image_url || shotRes.url)) {
+          currentShots.push({
+            id: shotRes.id,
+            image_url: shotRes.image_url || shotRes.url,
+            thumb_url: shotRes.thumb_url || shotRes.image_url || shotRes.url,
+            caption: shotRes.caption || caption || file.name
+          });
+          renderShotList();
+        }
+      }
+
+      clearPendingShots();
+      if (captionInput) captionInput.value = '';
+      Toast.success(`${compressedFiles.length} preview image(s) uploaded!`);
+      await loadData();
+
+      setTimeout(() => {
+        document.getElementById('upload-progress-ui').style.display = 'none';
+      }, 2000);
+    } catch (err) {
+      Toast.error(err.message || 'Failed to upload preview images');
+    } finally {
+      if (btn) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+  }
 
   function handleMediaPreview(input, type) {
     const file = input.files[0];
     const box = document.getElementById(`${type}-preview-box`);
-    if(!file) return; 
+    if (!file || !box) return;
     box.style.display = 'block';
     const objectUrl = URL.createObjectURL(file);
-    if(type === 'thumb') {
-      box.innerHTML = `<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Live Preview:</div><img src="${objectUrl}" style="max-width:200px; max-height:140px; border-radius:8px; object-fit:cover; display:block; border:1px solid var(--border);"><div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">Local File: ${file.name}</div>`;
+    if (type === 'thumb') {
+      box.innerHTML = `<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Live Preview:</div><img src="${objectUrl}" style="max-width:200px; max-height:140px; border-radius:8px; object-fit:cover; display:block; border:1px solid var(--border);"><div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">Local File: ${file.name} (${formatBytes(file.size)})</div>`;
     } else {
-      box.innerHTML = `<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Live Preview:</div><a href="${objectUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:8px; color:var(--accent); font-weight:600; text-decoration:none; padding:8px 12px; background:var(--bg-surface-hover); border-radius:6px; border:1px solid var(--border);">Open & Confirm PDF/File</a><div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">Local File: ${file.name}</div>`;
+      box.innerHTML = `<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Live Preview:</div><a href="${objectUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:8px; color:var(--accent); font-weight:600; text-decoration:none; padding:8px 12px; background:var(--bg-surface-hover); border-radius:6px; border:1px solid var(--border);">Open & Confirm PDF/File</a><div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">Local File: ${file.name} (${formatBytes(file.size)})</div>`;
     }
   }
 
   function openProductForm(id) {
-    document.getElementById('product-form').reset();
+    const form = document.getElementById('product-form');
+    if (form) form.reset();
     document.getElementById('edit-id').value = '';
     
     document.getElementById('upload-section').style.display = 'none';
     document.getElementById('upload-progress-ui').style.display = 'none';
     document.getElementById('thumb-preview-box').style.display = 'none';
     document.getElementById('file-preview-box').style.display = 'none';
+    currentShots = [];
+    clearPendingShots();
+    renderShotList();
     document.getElementById('modal-title').textContent = 'Add Product';
     
-    if (id) {
-      const p = allLoadedProducts.find(x => x.id === id);
-      if(p) {
+    if (id !== null && id !== undefined && id !== '') {
+      const p = allLoadedProducts.find(x => String(x.id) === String(id));
+      if (p) {
         document.getElementById('modal-title').textContent = 'Edit Product';
         document.getElementById('edit-id').value = p.id;
-        document.getElementById('p-title').value = p.title;
+        document.getElementById('p-title').value = p.title || '';
         document.getElementById('p-short-desc').value = p.short_description || '';
         document.getElementById('p-desc').value = p.description || '';
         document.getElementById('p-tags').value = p.tags || '';
-        document.getElementById('p-price').value = p.price;
+        document.getElementById('p-price').value = p.price ?? '';
         document.getElementById('p-original').value = p.original_price || '';
         document.getElementById('p-category').value = p.category || '';
         document.getElementById('p-sales').value = p.total_sales || 0;
-        document.getElementById('p-active').checked = p.is_active;
-        document.getElementById('p-featured').checked = p.is_featured;
+        document.getElementById('p-active').checked = Boolean(p.is_active);
+        document.getElementById('p-featured').checked = Boolean(p.is_featured);
         document.getElementById('upload-section').style.display = 'block';
+        currentShots = Array.isArray(p.screenshots) ? p.screenshots.slice() : [];
+        renderShotList();
 
-        if(p.thumbnail_url) {
+        if (p.thumbnail_url) {
           const tBox = document.getElementById('thumb-preview-box');
           tBox.style.display = 'block';
           tBox.innerHTML = `<div style="font-size:0.8rem; font-weight:600; color:var(--success); margin-bottom:8px;">Currently Uploaded:</div><a href="${p.thumbnail_url}" target="_blank"><img src="${p.thumbnail_url}" style="max-width:200px; max-height:140px; border-radius:6px; object-fit:cover; display:block; border:1px solid var(--border);"></a>`;
         }
-        if(p.file_name) {
+        if (p.file_name) {
           const fBox = document.getElementById('file-preview-box');
           fBox.style.display = 'block';
           fBox.innerHTML = `
             <div style="font-size:0.8rem; font-weight:600; color:var(--success); margin-bottom:8px;">Currently Uploaded:</div>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div style="padding:8px 12px; background:var(--bg-surface-hover); border-radius:6px; border:1px solid var(--border);">${p.file_name}</div>
-              <button type="button" class="btn-primary" onclick="adminPreviewFile(${p.id})" style="height: 38px; padding: 0 16px;">Open File in New Tab</button>
+              <button type="button" class="btn-primary" onclick="adminPreviewFile('${p.id}')" style="height: 38px; padding: 0 16px;">Open File in New Tab</button>
             </div>
           `;
         }
@@ -275,13 +715,16 @@
     document.getElementById('product-modal').classList.add('open');
   }
 
-  function closeProductForm() { document.getElementById('product-modal').classList.remove('open'); }
+  function closeProductForm() {
+    document.getElementById('product-modal').classList.remove('open');
+  }
 
   async function saveProduct(e) {
     e.preventDefault();
     const btn = document.getElementById('save-product-btn');
     const originalText = btn.innerHTML;
-    btn.innerHTML = 'Saving...'; btn.disabled = true;
+    btn.innerHTML = 'Saving...';
+    btn.disabled = true;
     
     const id = document.getElementById('edit-id').value;
     const payload = {
@@ -292,13 +735,13 @@
       price: parseFloat(document.getElementById('p-price').value),
       original_price: parseFloat(document.getElementById('p-original').value) || null,
       category: document.getElementById('p-category').value,
-      total_sales: parseInt(document.getElementById('p-sales').value) || 0,
+      total_sales: parseInt(document.getElementById('p-sales').value, 10) || 0,
       is_active: document.getElementById('p-active').checked,
       is_featured: document.getElementById('p-featured').checked
     };
 
     try {
-      if(id) {
+      if (id) {
         await API.put(`/products/${id}`, payload);
         Toast.success('Product updated');
         closeProductForm();
@@ -308,87 +751,37 @@
         document.getElementById('edit-id').value = res.id;
         document.getElementById('upload-section').style.display = 'block';
         Toast.success('Product created. Now upload files!');
-        btn.innerHTML = originalText; btn.disabled = false;
-        
-        // 🚀 FIX: Fetch data instantly so allLoadedProducts is updated 
-        // This prevents the empty form glitch!
-        await loadData(); 
-        return; 
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        await loadData();
+        return;
       }
-    } catch(err) { Toast.error(err.message); }
-    finally { btn.innerHTML = originalText; btn.disabled = false; }
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
   }
 
-  // XHR PROMISE WRAPPER FOR LIVE PROGRESS
-  function uploadWithProgress(url, file, contentType) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      
-      const uiBox = document.getElementById('upload-progress-ui');
-      const uiFill = document.getElementById('up-fill');
-      const uiPercent = document.getElementById('up-percent');
-      const uiSpeed = document.getElementById('up-speed');
-      const uiStatus = document.getElementById('up-status');
-      
-      document.getElementById('up-file-name').innerText = file.name;
-      uiBox.style.display = 'block';
-      uiStatus.innerText = 'Uploading...';
-      uiStatus.style.color = 'var(--text-primary)';
-
-      let lastTime = Date.now();
-      let lastLoaded = 0;
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          uiFill.style.width = percent + '%';
-          uiPercent.innerText = percent + '%';
-
-          const now = Date.now();
-          const timeDiff = (now - lastTime) / 1000;
-          if (timeDiff >= 0.25) {
-            const speed = (e.loaded - lastLoaded) / timeDiff;
-            uiSpeed.innerText = speed > 1048576 ? (speed / 1048576).toFixed(2) + " MB/s" : (speed / 1024).toFixed(2) + " KB/s";
-            lastTime = now;
-            lastLoaded = e.loaded;
-          }
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          uiStatus.innerText = 'Completed!';
-          uiStatus.style.color = 'var(--success)';
-          uiSpeed.innerText = 'Done';
-          uiFill.style.width = '100%';
-          uiPercent.innerText = '100%';
-          resolve(xhr.response);
-        } else {
-          uiStatus.innerText = 'Failed!';
-          uiStatus.style.color = 'var(--danger)';
-          reject(new Error("Upload failed"));
-        }
-      };
-      
-      xhr.onerror = () => reject(new Error("Network error during upload"));
-      xhr.open("PUT", url, true);
-      xhr.setRequestHeader("Content-Type", contentType);
-      xhr.send(file);
-    });
-  }
-
-  async function uploadMedia(type) {
+  async function uploadMedia(type, btnEl) {
     const id = document.getElementById('edit-id').value;
     const fileInput = document.getElementById(type === 'thumbnail' ? 'thumb-file' : 'product-file');
     const file = fileInput.files[0];
-    if(!file) { Toast.error('Please select a file first'); return; }
+    if (!file) {
+      Toast.error('Please select a file first');
+      return;
+    }
     
-    const btn = event.currentTarget || event.target;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = 'Uploading...'; btn.disabled = true;
+    const btn = btnEl || document.activeElement;
+    const originalText = btn ? btn.innerHTML : 'Upload';
+    if (btn) {
+      btn.innerHTML = 'Uploading...';
+      btn.disabled = true;
+    }
     
     try {
-      // Direct Cloudflare R2 Upload
+      // 1. Try Direct Cloudflare R2 Upload with Live Progress Bar
       try {
         const urlRes = await API.post(`/products/${id}/get-upload-url`, {
           filename: file.name,
@@ -396,10 +789,13 @@
           type: type
         });
         
-        // Use XHR for Live Progress
-        await uploadWithProgress(urlRes.upload_url, file, file.type || 'application/octet-stream');
+        await uploadWithProgress(urlRes.upload_url, file, {
+          method: 'PUT',
+          contentType: file.type || 'application/octet-stream',
+          fileName: file.name,
+          statusPrefix: `Uploading ${type}...`
+        });
         
-        // Confirm with DB
         await API.post(`/products/${id}/confirm-upload`, {
           file_url: urlRes.file_url,
           file_name: urlRes.file_name,
@@ -407,46 +803,53 @@
         });
         
         Toast.success(`${type} uploaded securely!`);
-        setTimeout(() => { 
-          document.getElementById('upload-progress-ui').style.display = 'none'; 
-          loadData(); 
-          // 🚀 FIX: Upload complete hone ke baad modal automatically close ho jayega
-          closeProductForm(); 
-        }, 1500);
-        return; 
-      } catch(cloudErr) {
-        console.log("Direct Upload failed, trying local fallback", cloudErr);
+        await loadData();
+        setTimeout(() => {
+          document.getElementById('upload-progress-ui').style.display = 'none';
+        }, 1800);
+        return;
+      } catch (cloudErr) {
+        console.log("Direct Upload failed, using local upload with progress bar", cloudErr);
       }
 
-      // Local Fallback
+      // 2. Local Fallback WITH Live XHR Progress Bar (KB/s, MB/s, %)
       const formData = new FormData();
       formData.append('file', file);
-      await API.upload(`/products/${id}/upload-${type}`, formData);
-      Toast.success(`${type} uploaded locally!`);
-      setTimeout(() => { 
-        loadData(); 
-        // 🚀 FIX: Upload complete hone ke baad modal automatically close ho jayega
-        closeProductForm(); 
-      }, 1500);
+      const { fullUrl, headers } = getApiUrlAndHeaders(`/products/${id}/upload-${type}`);
 
-    } catch(err) { 
-      Toast.error(err.message); 
+      await uploadWithProgress(fullUrl, formData, {
+        method: 'POST',
+        headers,
+        fileName: file.name,
+        statusPrefix: `Uploading ${type}...`
+      });
+
+      Toast.success(`${type} uploaded locally!`);
+      await loadData();
+      setTimeout(() => {
+        document.getElementById('upload-progress-ui').style.display = 'none';
+      }, 1800);
+
+    } catch (err) {
+      Toast.error(err.message);
     } finally {
-      btn.innerHTML = originalText; 
-      btn.disabled = false;
+      if (btn) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
   }
 
   function adminPreviewFile(productId) {
     const token = Auth.getToken();
     fetch('/api/orders/download/' + productId, { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(res => {
+      .then(res => {
         if (res.redirected) { window.open(res.url, '_blank'); return; }
         if (!res.ok) throw new Error('Permission denied.');
         return res.blob();
-    })
-    .then(blob => { if(blob) { window.open(URL.createObjectURL(blob), '_blank'); } })
-    .catch(err => Toast.error(err.message));
+      })
+      .then(blob => { if (blob) { window.open(URL.createObjectURL(blob), '_blank'); } })
+      .catch(err => Toast.error(err.message));
   }
 
   setTimeout(loadData, 100);

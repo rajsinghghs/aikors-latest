@@ -58,6 +58,7 @@ class ConfirmUploadRequest(BaseModel):
     file_name: str
     type: str
     caption: Optional[str] = None
+    thumb_url: Optional[str] = None
 
 
 # ─── Public Endpoints ─────────────────────────────────────────────────────────
@@ -117,6 +118,22 @@ def _active_product(slug: str, db: Session) -> models.Product:
     return product
 
 
+def _review_payload(review: models.Review, buyers: set) -> schemas.ReviewResponse:
+    name = (review.author_name or "").strip()
+    if not name and review.user:
+        name = review.user.name
+    return schemas.ReviewResponse(
+        id=review.id,
+        user_id=review.user_id,
+        user_name=name or "Student",
+        rating=review.rating,
+        comment=review.comment or "",
+        verified_purchase=bool(review.user_id and review.user_id in buyers),
+        is_visible=bool(review.is_visible),
+        created_at=review.created_at,
+    )
+
+
 def _buyer_ids(product_id: int, db: Session) -> set:
     rows = db.query(models.Order.user_id).join(models.OrderItem).filter(
         models.OrderItem.product_id == product_id,
@@ -136,31 +153,31 @@ def list_reviews(
     reviews = db.query(models.Review).options(
         selectinload(models.Review.user)
     ).filter(
-        models.Review.product_id == product.id
+        models.Review.product_id == product.id,
+        models.Review.is_visible.is_(True),
     ).order_by(models.Review.created_at.desc()).all()
+    if user:
+        mine_row = db.query(models.Review).options(
+            selectinload(models.Review.user)
+        ).filter(
+            models.Review.product_id == product.id,
+            models.Review.user_id == user.id,
+        ).first()
+        if mine_row and all(row.id != mine_row.id for row in reviews):
+            reviews.append(mine_row)
     buyers = _buyer_ids(product.id, db)
-    payload = [
-        schemas.ReviewResponse(
-            id=review.id,
-            user_id=review.user_id,
-            user_name=review.user.name if review.user else "Student",
-            rating=review.rating,
-            comment=review.comment,
-            verified_purchase=review.user_id in buyers,
-            created_at=review.created_at,
-        )
-        for review in reviews
-    ]
+    payload = [_review_payload(review, buyers) for review in reviews]
+    visible_items = [item for item in payload if item.is_visible]
     breakdown = {str(star): 0 for star in range(1, 6)}
-    for item in payload:
+    for item in visible_items:
         key = str(item.rating)
         if key in breakdown:
             breakdown[key] += 1
-    average = round(sum(item.rating for item in payload) / len(payload), 1) if payload else None
+    average = round(sum(item.rating for item in visible_items) / len(visible_items), 1) if visible_items else None
     mine = next((item for item in payload if user and item.user_id == user.id), None)
     return schemas.ReviewListResponse(
         average=average,
-        count=len(payload),
+        count=len(visible_items),
         breakdown=breakdown,
         purchased=bool(user and user.id in buyers),
         my_review_id=mine.id if mine else None,
@@ -199,15 +216,7 @@ def upsert_review(
     db.commit()
     db.refresh(review)
     verified = user.id in _buyer_ids(product.id, db)
-    return schemas.ReviewResponse(
-        id=review.id,
-        user_id=user.id,
-        user_name=user.name,
-        rating=review.rating,
-        comment=review.comment,
-        verified_purchase=verified,
-        created_at=review.created_at,
-    )
+    return _review_payload(review, {user.id} if verified else set())
 
 
 @router.delete("/{slug}/reviews/mine", status_code=204)
@@ -308,22 +317,34 @@ def confirm_upload(product_id: int, req: ConfirmUploadRequest, db: Session = Dep
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    shot = None
     if req.type == "thumbnail":
         product.thumbnail_url = req.file_url
     elif req.type == "screenshot":
         next_order = db.query(models.ProductScreenshot).filter(
             models.ProductScreenshot.product_id == product.id
         ).count()
-        db.add(models.ProductScreenshot(
+        shot = models.ProductScreenshot(
             product_id=product.id,
             image_url=req.file_url,
+            thumb_url=req.thumb_url or None,
             caption=(req.caption or req.file_name or "Preview")[:200],
             sort_order=next_order,
-        ))
+        )
+        db.add(shot)
     else:
         product.file_url = req.file_url
         product.file_name = req.file_name
     db.commit()
+    if shot is not None:
+        db.refresh(shot)
+        return {
+            "success": True,
+            "id": shot.id,
+            "image_url": shot.image_url,
+            "thumb_url": shot.thumb_url,
+            "caption": shot.caption,
+        }
     return {"success": True}
 
 
@@ -397,38 +418,53 @@ async def upload_thumbnail(product_id: int, file: UploadFile = File(...), db: Se
     return {"thumbnail_url": product.thumbnail_url, "source": "Local"}
 
 
+def _store_preview_bytes(content: bytes, filename: str, content_type: str):
+    if upload_file_to_r2 and os.getenv("R2_ACCESS_KEY_ID"):
+        try:
+            return upload_file_to_r2(
+                file_content=content,
+                original_filename=filename,
+                folder="previews",
+                content_type=content_type,
+            )
+        except Exception as exc:
+            print(f"R2 screenshot upload failed, falling back to local: {exc}")
+    ext = os.path.splitext(filename or "")[1] or ".jpg"
+    unique_name = f"{uuid.uuid4().hex}{ext}"
+    file_path = f"{UPLOAD_DIR}/previews/{unique_name}"
+    with open(file_path, "wb") as handle:
+        handle.write(content)
+    return f"/uploads/previews/{unique_name}"
+
+
 @router.post("/{product_id}/upload-screenshot")
 async def upload_screenshot(
     product_id: int,
     file: UploadFile = File(...),
+    caption: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     admin: models.User = Depends(get_current_admin),
 ):
-    """Admin: add a public content preview image (local or R2)."""
+    """Admin: add a public content preview. A small copy is stored for the page grid."""
+    from utils.image_preview import preview_variants
+
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
     content = await file.read()
-    image_url = None
-    if upload_file_to_r2 and os.getenv("R2_ACCESS_KEY_ID"):
-        try:
-            image_url = upload_file_to_r2(
-                file_content=content,
-                original_filename=file.filename,
-                folder="previews",
-                content_type=file.content_type,
-            )
-        except Exception as exc:
-            print(f"R2 screenshot upload failed, falling back to local: {exc}")
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty image")
+    full_bytes, thumb_bytes, prepared_type = preview_variants(content)
+    content_type = prepared_type or file.content_type or "image/jpeg"
+    filename = file.filename or "preview.jpg"
+    if prepared_type == "image/jpeg":
+        filename = os.path.splitext(filename)[0] + ".jpg"
 
-    if not image_url:
-        ext = os.path.splitext(file.filename or "")[1] or ".png"
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        file_path = f"{UPLOAD_DIR}/previews/{unique_name}"
-        async with aiofiles.open(file_path, "wb") as handle:
-            await handle.write(content)
-        image_url = f"/uploads/previews/{unique_name}"
+    image_url = _store_preview_bytes(full_bytes, filename, content_type)
+    thumb_url = image_url
+    if thumb_bytes != full_bytes:
+        thumb_url = _store_preview_bytes(thumb_bytes, "thumb-" + filename, content_type)
 
     next_order = db.query(models.ProductScreenshot).filter(
         models.ProductScreenshot.product_id == product.id
@@ -436,10 +472,16 @@ async def upload_screenshot(
     shot = models.ProductScreenshot(
         product_id=product.id,
         image_url=image_url,
-        caption=(file.filename or "Preview")[:200],
+        thumb_url=thumb_url,
+        caption=(caption or file.filename or "Preview")[:200],
         sort_order=next_order,
     )
     db.add(shot)
     db.commit()
     db.refresh(shot)
-    return {"id": shot.id, "image_url": shot.image_url, "caption": shot.caption}
+    return {
+        "id": shot.id,
+        "image_url": shot.image_url,
+        "thumb_url": shot.thumb_url,
+        "caption": shot.caption,
+    }

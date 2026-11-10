@@ -35,3 +35,30 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_schema():
+    """Add columns introduced after the first deploy. create_all does not alter existing tables."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    with engine.begin() as conn:
+        if inspector.has_table("reviews"):
+            review_cols = {col["name"]: col for col in inspector.get_columns("reviews")}
+            if "is_visible" not in review_cols:
+                conn.execute(text(
+                    "ALTER TABLE reviews ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT TRUE"
+                ))
+            if "author_name" not in review_cols:
+                conn.execute(text(
+                    "ALTER TABLE reviews ADD COLUMN author_name VARCHAR(100)"
+                ))
+            user_col = review_cols.get("user_id")
+            if user_col and user_col.get("nullable") is False:
+                conn.execute(text("ALTER TABLE reviews ALTER COLUMN user_id DROP NOT NULL"))
+        if inspector.has_table("product_screenshots"):
+            shot_cols = {col["name"] for col in inspector.get_columns("product_screenshots")}
+            if "thumb_url" not in shot_cols:
+                conn.execute(text(
+                    "ALTER TABLE product_screenshots ADD COLUMN thumb_url VARCHAR(500)"
+                ))

@@ -109,6 +109,7 @@ class ProductResponse(BaseModel):
 class ScreenshotResponse(BaseModel):
     id: int
     image_url: str
+    thumb_url: Optional[str] = None
     caption: Optional[str] = None
     sort_order: int = 0
 
@@ -129,11 +130,12 @@ class ReviewCreate(BaseModel):
 
 class ReviewResponse(BaseModel):
     id: int
-    user_id: int
+    user_id: Optional[int] = None
     user_name: str
     rating: int
     comment: str
     verified_purchase: bool
+    is_visible: bool = True
     created_at: datetime
 
 
